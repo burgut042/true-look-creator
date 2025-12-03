@@ -1,30 +1,50 @@
 import { useState } from "react";
 import { CloudRain, Snowflake } from "lucide-react";
+import { toast } from "sonner";
 
 export const PrecipitationToggle = () => {
   const [type, setType] = useState<"rain" | "snow">("rain");
   const [intensity, setIntensity] = useState<"light" | "moderate" | "heavy">("heavy");
+
+  const handleTypeChange = (newType: "rain" | "snow") => {
+    setType(newType);
+    toast.info(`${newType === "rain" ? "Yomg'ir" : "Qor"} rejimi tanlandi`);
+  };
+
+  const handleIntensityChange = (newIntensity: "light" | "moderate" | "heavy") => {
+    setIntensity(newIntensity);
+    const labels = {
+      light: "Yengil",
+      moderate: "O'rtacha",
+      heavy: "Kuchli"
+    };
+    toast.info(`Intensivlik: ${labels[newIntensity]}`);
+  };
 
   return (
     <div className="glass-panel rounded-lg p-4 space-y-4">
       {/* Rain/Snow Toggle */}
       <div className="flex bg-muted/50 rounded-full p-1">
         <button
-          onClick={() => setType("rain")}
+          onClick={() => handleTypeChange("rain")}
           className={`flex items-center gap-2 px-6 py-2 rounded-full text-sm transition-all ${
-            type === "rain" ? "bg-secondary text-foreground" : "text-muted-foreground"
+            type === "rain" 
+              ? "bg-secondary text-foreground shadow-md" 
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <CloudRain className="w-4 h-4" />
+          <CloudRain className={`w-4 h-4 ${type === "rain" ? "text-primary" : ""}`} />
           Rain
         </button>
         <button
-          onClick={() => setType("snow")}
+          onClick={() => handleTypeChange("snow")}
           className={`flex items-center gap-2 px-6 py-2 rounded-full text-sm transition-all ${
-            type === "snow" ? "bg-secondary text-foreground" : "text-muted-foreground"
+            type === "snow" 
+              ? "bg-secondary text-foreground shadow-md" 
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Snowflake className="w-4 h-4" />
+          <Snowflake className={`w-4 h-4 ${type === "snow" ? "text-primary" : ""}`} />
           Snow
         </button>
       </div>
@@ -38,20 +58,26 @@ export const PrecipitationToggle = () => {
         ].map((item) => (
           <button
             key={item.key}
-            onClick={() => setIntensity(item.key as typeof intensity)}
-            className={`p-3 rounded-lg border text-left transition-all ${
+            onClick={() => handleIntensityChange(item.key as typeof intensity)}
+            className={`p-3 rounded-lg border text-left transition-all hover:scale-[1.02] active:scale-[0.98] ${
               intensity === item.key
-                ? "border-primary bg-primary/10"
-                : "border-border/50 bg-muted/30 hover:bg-muted/50"
+                ? "border-primary bg-primary/10 shadow-md"
+                : "border-border/50 bg-muted/30 hover:bg-muted/50 hover:border-border"
             }`}
           >
             <div className="flex items-center justify-between mb-1">
               <span className="text-sm font-medium">{item.label}</span>
               <div
-                className={`w-3 h-3 rounded-full border-2 ${
-                  intensity === item.key ? "border-primary bg-primary" : "border-muted-foreground"
+                className={`w-3 h-3 rounded-full border-2 flex items-center justify-center transition-all ${
+                  intensity === item.key 
+                    ? "border-primary bg-primary" 
+                    : "border-muted-foreground"
                 }`}
-              />
+              >
+                {intensity === item.key && (
+                  <div className="w-1 h-1 rounded-full bg-primary-foreground" />
+                )}
+              </div>
             </div>
             <span className="text-xs text-muted-foreground">{item.range}</span>
           </button>

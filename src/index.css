@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -123,4 +124,40 @@
   .gradient-map {
     background: linear-gradient(180deg, hsl(210 45% 15%) 0%, hsl(195 60% 20%) 50%, hsl(210 45% 12%) 100%);
   }
+}
+
+/* Leaflet custom styles */
+.leaflet-container {
+  background: hsl(210 40% 8%) !important;
+  font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  background: hsl(210 45% 12%);
+  color: hsl(200 20% 95%);
+  border-radius: 0.5rem;
+  border: 1px solid hsl(210 30% 22%);
+}
+
+.leaflet-popup-tip {
+  background: hsl(210 45% 12%);
+}
+
+.leaflet-popup-close-button {
+  color: hsl(200 15% 60%) !important;
+}
+
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-control-attribution {
+  background: hsl(210 40% 8% / 0.8) !important;
+  color: hsl(200 15% 60%) !important;
+  font-size: 10px;
+}
+
+.leaflet-control-attribution a {
+  color: hsl(175 75% 45%) !important;
 }

@@ -1,88 +1,104 @@
 import { useState } from "react";
-import { CloudRain, Snowflake } from "lucide-react";
+import { Car, Truck, Bike, Power, PowerOff } from "lucide-react";
 import { toast } from "sonner";
 
-export const PrecipitationToggle = () => {
-  const [type, setType] = useState<"rain" | "snow">("rain");
-  const [intensity, setIntensity] = useState<"light" | "moderate" | "heavy">("heavy");
+export const VehicleStatusToggle = () => {
+  const [vehicleType, setVehicleType] = useState<"car" | "truck" | "bike">("car");
+  const [status, setStatus] = useState<"online" | "idle" | "offline">("online");
 
-  const handleTypeChange = (newType: "rain" | "snow") => {
-    setType(newType);
-    toast.info(`${newType === "rain" ? "Yomg'ir" : "Qor"} rejimi tanlandi`);
+  const handleTypeChange = (newType: "car" | "truck" | "bike") => {
+    setVehicleType(newType);
+    const labels = { car: "Avtomobil", truck: "Yuk mashinasi", bike: "Mototsikl" };
+    toast.info(`${labels[newType]} tanlandi`);
   };
 
-  const handleIntensityChange = (newIntensity: "light" | "moderate" | "heavy") => {
-    setIntensity(newIntensity);
-    const labels = {
-      light: "Yengil",
-      moderate: "O'rtacha",
-      heavy: "Kuchli"
-    };
-    toast.info(`Intensivlik: ${labels[newIntensity]}`);
+  const handleStatusChange = (newStatus: "online" | "idle" | "offline") => {
+    setStatus(newStatus);
+    const labels = { online: "Faol", idle: "Kutish", offline: "O'chiq" };
+    toast.info(`Holat: ${labels[newStatus]}`);
   };
 
   return (
     <div className="glass-panel rounded-lg p-4 space-y-4">
-      {/* Rain/Snow Toggle */}
+      {/* Vehicle Type Toggle */}
       <div className="flex bg-muted/50 rounded-full p-1">
         <button
-          onClick={() => handleTypeChange("rain")}
-          className={`flex items-center gap-2 px-6 py-2 rounded-full text-sm transition-all ${
-            type === "rain" 
+          onClick={() => handleTypeChange("car")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-all ${
+            vehicleType === "car" 
               ? "bg-secondary text-foreground shadow-md" 
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <CloudRain className={`w-4 h-4 ${type === "rain" ? "text-primary" : ""}`} />
-          Rain
+          <Car className={`w-4 h-4 ${vehicleType === "car" ? "text-primary" : ""}`} />
+          Avto
         </button>
         <button
-          onClick={() => handleTypeChange("snow")}
-          className={`flex items-center gap-2 px-6 py-2 rounded-full text-sm transition-all ${
-            type === "snow" 
+          onClick={() => handleTypeChange("truck")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-all ${
+            vehicleType === "truck" 
               ? "bg-secondary text-foreground shadow-md" 
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Snowflake className={`w-4 h-4 ${type === "snow" ? "text-primary" : ""}`} />
-          Snow
+          <Truck className={`w-4 h-4 ${vehicleType === "truck" ? "text-primary" : ""}`} />
+          Yuk
+        </button>
+        <button
+          onClick={() => handleTypeChange("bike")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-all ${
+            vehicleType === "bike" 
+              ? "bg-secondary text-foreground shadow-md" 
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Bike className={`w-4 h-4 ${vehicleType === "bike" ? "text-primary" : ""}`} />
+          Moto
         </button>
       </div>
 
-      {/* Intensity Options */}
+      {/* Status Options */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { key: "light", label: "Light", range: "0.1 - 2.5 mm/hr." },
-          { key: "moderate", label: "Moderate", range: "2.6 - 7.6 mm/hr." },
-          { key: "heavy", label: "Heavy", range: "7.7 - 50 mm/hr." },
-        ].map((item) => (
-          <button
-            key={item.key}
-            onClick={() => handleIntensityChange(item.key as typeof intensity)}
-            className={`p-3 rounded-lg border text-left transition-all hover:scale-[1.02] active:scale-[0.98] ${
-              intensity === item.key
-                ? "border-primary bg-primary/10 shadow-md"
-                : "border-border/50 bg-muted/30 hover:bg-muted/50 hover:border-border"
-            }`}
-          >
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium">{item.label}</span>
-              <div
-                className={`w-3 h-3 rounded-full border-2 flex items-center justify-center transition-all ${
-                  intensity === item.key 
-                    ? "border-primary bg-primary" 
-                    : "border-muted-foreground"
-                }`}
-              >
-                {intensity === item.key && (
-                  <div className="w-1 h-1 rounded-full bg-primary-foreground" />
-                )}
+          { key: "online", label: "Faol", desc: "Harakatda", icon: Power, color: "text-green-400" },
+          { key: "idle", label: "Kutish", desc: "To'xtab turgan", icon: Power, color: "text-yellow-400" },
+          { key: "offline", label: "O'chiq", desc: "Signal yo'q", icon: PowerOff, color: "text-red-400" },
+        ].map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.key}
+              onClick={() => handleStatusChange(item.key as typeof status)}
+              className={`p-3 rounded-lg border text-left transition-all hover:scale-[1.02] active:scale-[0.98] ${
+                status === item.key
+                  ? "border-primary bg-primary/10 shadow-md"
+                  : "border-border/50 bg-muted/30 hover:bg-muted/50 hover:border-border"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1">
+                  <Icon className={`w-3 h-3 ${item.color}`} />
+                  <span className="text-sm font-medium">{item.label}</span>
+                </div>
+                <div
+                  className={`w-3 h-3 rounded-full border-2 flex items-center justify-center transition-all ${
+                    status === item.key 
+                      ? "border-primary bg-primary" 
+                      : "border-muted-foreground"
+                  }`}
+                >
+                  {status === item.key && (
+                    <div className="w-1 h-1 rounded-full bg-primary-foreground" />
+                  )}
+                </div>
               </div>
-            </div>
-            <span className="text-xs text-muted-foreground">{item.range}</span>
-          </button>
-        ))}
+              <span className="text-xs text-muted-foreground">{item.desc}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 };
+
+export const PrecipitationToggle = VehicleStatusToggle;

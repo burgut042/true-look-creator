@@ -4,12 +4,18 @@ import { VehicleInfoPanel } from "@/components/dashboard/InterconnectedParams";
 import { TrackingResultsPanel } from "@/components/dashboard/PredictionResults";
 import { MapVisualization } from "@/components/dashboard/MapVisualization";
 import { MapLayersPanel } from "@/components/dashboard/VisualizationLayers";
+import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-background text-foreground overflow-hidden">
       {/* Main Dashboard Container */}
       <div className="relative h-screen flex flex-col">
+        {/* Theme Toggle - Fixed Position */}
+        <div className="absolute top-4 right-4 z-50">
+          <ThemeToggle />
+        </div>
+
         {/* Top Section */}
         <div className="flex-1 relative p-4 overflow-hidden">
           {/* Background Map */}

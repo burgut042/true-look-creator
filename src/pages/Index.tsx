@@ -1,9 +1,9 @@
-import { WeatherParametersPanel } from "@/components/dashboard/WeatherParametersPanel";
-import { PrecipitationToggle } from "@/components/dashboard/PrecipitationToggle";
-import { InterconnectedParams } from "@/components/dashboard/InterconnectedParams";
-import { PredictionResults } from "@/components/dashboard/PredictionResults";
+import { TrackingParametersPanel } from "@/components/dashboard/WeatherParametersPanel";
+import { VehicleStatusToggle } from "@/components/dashboard/PrecipitationToggle";
+import { VehicleInfoPanel } from "@/components/dashboard/InterconnectedParams";
+import { TrackingResultsPanel } from "@/components/dashboard/PredictionResults";
 import { MapVisualization } from "@/components/dashboard/MapVisualization";
-import { VisualizationLayers } from "@/components/dashboard/VisualizationLayers";
+import { MapLayersPanel } from "@/components/dashboard/VisualizationLayers";
 
 const Index = () => {
   return (
@@ -18,29 +18,29 @@ const Index = () => {
           </div>
 
           {/* Overlay Panels */}
-          <div className="relative z-10 flex justify-between items-start h-full">
+          <div className="relative z-10 flex justify-between items-start h-full pointer-events-none">
             {/* Left Panel */}
-            <div className="flex flex-col gap-4">
-              <WeatherParametersPanel />
+            <div className="flex flex-col gap-4 pointer-events-auto">
+              <TrackingParametersPanel />
             </div>
 
             {/* Center Top Panels */}
-            <div className="flex flex-col items-center gap-4 pt-0">
-              <PrecipitationToggle />
-              <InterconnectedParams />
+            <div className="flex flex-col items-center gap-4 pt-0 pointer-events-auto">
+              <VehicleStatusToggle />
+              <VehicleInfoPanel />
             </div>
 
             {/* Right Panel */}
-            <div className="flex flex-col gap-4">
-              <PredictionResults />
+            <div className="flex flex-col gap-4 pointer-events-auto">
+              <TrackingResultsPanel />
             </div>
           </div>
         </div>
 
-        {/* Bottom Section - Visualization Layers */}
+        {/* Bottom Section - Map Layers */}
         <div className="relative z-20 bg-gradient-to-t from-background via-background/95 to-transparent pt-8">
           <div className="bg-card/50 backdrop-blur-sm border-t border-border/30">
-            <VisualizationLayers />
+            <MapLayersPanel />
           </div>
         </div>
       </div>

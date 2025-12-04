@@ -57,6 +57,7 @@ const TimelineSelector = ({ selectedHour, onHourChange }: TimelineSelectorProps)
 export const MapVisualization = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<number | null>(1);
   const [selectedHour, setSelectedHour] = useState("14:00");
 
@@ -70,8 +71,15 @@ export const MapVisualization = () => {
       zoomControl: false,
     });
 
-    // Dark themed tile layer
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // Check if dark mode
+    const isDark = document.documentElement.classList.contains('dark');
+    
+    // Select tile layer based on theme
+    const tileUrl = isDark
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+    tileLayerRef.current = L.tileLayer(tileUrl, {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       subdomains: 'abcd',
       maxZoom: 19,
@@ -169,7 +177,24 @@ export const MapVisualization = () => {
 
     mapInstanceRef.current = map;
 
+    // Watch for theme changes
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class' && mapInstanceRef.current && tileLayerRef.current) {
+          const isDarkNow = document.documentElement.classList.contains('dark');
+          const newTileUrl = isDarkNow
+            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+            : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+          
+          tileLayerRef.current.setUrl(newTileUrl);
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, { attributes: true });
+
     return () => {
+      observer.disconnect();
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;

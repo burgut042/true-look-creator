@@ -57,9 +57,9 @@ const Index = () => {
           </div>
 
           {/* Overlay Panels */}
-          <div className="relative z-10 flex justify-between items-start h-full pointer-events-none">
+          <div className="relative z-10 flex justify-between items-start h-full pointer-events-none pt-2">
             {/* Left Panel */}
-            <div className="flex flex-col gap-4 pointer-events-auto">
+            <div className="flex flex-col gap-4 pointer-events-auto max-w-xs">
               <TrackingParametersPanel />
             </div>
 
@@ -70,7 +70,7 @@ const Index = () => {
             </div>
 
             {/* Right Panel */}
-            <div className="flex flex-col gap-4 pointer-events-auto">
+            <div className="flex flex-col gap-4 pointer-events-auto max-w-xs mt-12">
               <TrackingResultsPanel />
             </div>
           </div>

@@ -124,7 +124,11 @@
   }
 
   .glass-panel {
-    @apply bg-card/90 backdrop-blur-md border border-border/50;
+    @apply bg-card/90 backdrop-blur-md border border-border shadow-sm;
+  }
+
+  .dark .glass-panel {
+    @apply border-border/50;
   }
 
   .gradient-map {

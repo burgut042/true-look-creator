@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { TrackingParametersPanel } from "@/components/dashboard/WeatherParametersPanel";
 import { VehicleStatusToggle } from "@/components/dashboard/PrecipitationToggle";
 import { VehicleInfoPanel } from "@/components/dashboard/InterconnectedParams";
@@ -7,6 +8,32 @@ import { MapLayersPanel } from "@/components/dashboard/VisualizationLayers";
 import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
 
 const Index = () => {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Handle ESC key to exit fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
+
+  // Fullscreen map view
+  if (isFullscreen) {
+    return (
+      <div className="h-screen w-screen bg-background">
+        <MapVisualization 
+          isFullscreen={true} 
+          onToggleFullscreen={() => setIsFullscreen(false)} 
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground overflow-hidden">
       {/* Main Dashboard Container */}
@@ -20,7 +47,10 @@ const Index = () => {
         <div className="flex-1 relative p-4 overflow-hidden">
           {/* Background Map */}
           <div className="absolute inset-0 z-0">
-            <MapVisualization />
+            <MapVisualization 
+              isFullscreen={false}
+              onToggleFullscreen={() => setIsFullscreen(true)}
+            />
           </div>
 
           {/* Overlay Panels */}

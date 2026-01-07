@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Car, Navigation } from "lucide-react";
+import { Car, Navigation, Shield, ShieldAlert, Maximize2, Minimize2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface VehicleMarker {
   id: number;
@@ -13,10 +14,23 @@ interface VehicleMarker {
   status: "online" | "idle" | "offline";
 }
 
+interface Geofence {
+  id: number;
+  name: string;
+  center: [number, number];
+  radius: number;
+  active: boolean;
+}
+
 const vehicles: VehicleMarker[] = [
   { id: 1, lat: 41.2995, lng: 69.2401, name: "Toyota Camry - 01A123BC", speed: 67, status: "online" },
   { id: 2, lat: 41.3111, lng: 69.2797, name: "Chevrolet Lacetti - 01B456CD", speed: 0, status: "idle" },
   { id: 3, lat: 39.6542, lng: 66.9597, name: "Isuzu NPR - 01C789EF", speed: 45, status: "online" },
+];
+
+const geofences: Geofence[] = [
+  { id: 1, name: "Toshkent hududi", center: [41.2995, 69.2401], radius: 15000, active: true },
+  { id: 2, name: "Samarqand hududi", center: [39.6542, 66.9597], radius: 10000, active: true },
 ];
 
 interface TimelineSelectorProps {
@@ -54,12 +68,52 @@ const TimelineSelector = ({ selectedHour, onHourChange }: TimelineSelectorProps)
   );
 };
 
-export const MapVisualization = () => {
+interface MapVisualizationProps {
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
+}
+
+export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: MapVisualizationProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const geofenceLayersRef = useRef<L.Circle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<number | null>(1);
   const [selectedHour, setSelectedHour] = useState("14:00");
+  const [showGeofences, setShowGeofences] = useState(true);
+  const [geofenceAlerts, setGeofenceAlerts] = useState<string[]>([]);
+
+  // Check if vehicle is outside geofence
+  const checkGeofenceViolation = (vehicle: VehicleMarker, geofence: Geofence): boolean => {
+    const distance = mapInstanceRef.current?.distance(
+      [vehicle.lat, vehicle.lng],
+      geofence.center
+    ) || 0;
+    return distance > geofence.radius;
+  };
+
+  // Check all vehicles against geofences
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    
+    const alerts: string[] = [];
+    vehicles.forEach(vehicle => {
+      geofences.forEach(geofence => {
+        if (geofence.active && checkGeofenceViolation(vehicle, geofence)) {
+          alerts.push(`${vehicle.name} - ${geofence.name} dan tashqarida!`);
+        }
+      });
+    });
+    
+    setGeofenceAlerts(alerts);
+    
+    // Show toast for violations
+    if (alerts.length > 0) {
+      toast.warning("Geofence ogohlantirish!", {
+        description: `${alerts.length} ta transport chegaradan tashqarida`,
+      });
+    }
+  }, [selectedHour]); // Re-check when time changes
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
@@ -175,6 +229,27 @@ export const MapVisualization = () => {
       dashArray: '10, 10',
     }).addTo(map);
 
+    // Add geofence circles
+    geofences.forEach((geofence) => {
+      const circle = L.circle(geofence.center, {
+        radius: geofence.radius,
+        color: '#8b5cf6',
+        fillColor: '#8b5cf680',
+        fillOpacity: 0.2,
+        weight: 2,
+        dashArray: '5, 5',
+      }).addTo(map);
+      
+      circle.bindPopup(`
+        <div style="font-family: system-ui; min-width: 120px;">
+          <div style="font-weight: 600; color: #8b5cf6; margin-bottom: 4px;">${geofence.name}</div>
+          <div style="font-size: 12px; color: #94a3b8;">Radius: ${(geofence.radius / 1000).toFixed(1)} km</div>
+        </div>
+      `);
+      
+      geofenceLayersRef.current.push(circle);
+    });
+
     mapInstanceRef.current = map;
 
     // Watch for theme changes
@@ -202,30 +277,82 @@ export const MapVisualization = () => {
     };
   }, []);
 
+  // Toggle geofence visibility
+  useEffect(() => {
+    geofenceLayersRef.current.forEach(layer => {
+      if (showGeofences) {
+        layer.setStyle({ opacity: 1, fillOpacity: 0.2 });
+      } else {
+        layer.setStyle({ opacity: 0, fillOpacity: 0 });
+      }
+    });
+  }, [showGeofences]);
+
   return (
-    <div className="relative flex-1 h-full min-h-[500px] rounded-lg overflow-hidden">
+    <div className={`relative flex-1 h-full min-h-[500px] rounded-lg overflow-hidden ${isFullscreen ? 'fixed inset-0 z-[9999] rounded-none' : ''}`}>
       {/* Map Container */}
       <div ref={mapRef} className="absolute inset-0 z-0" />
 
-      {/* Legend */}
-      <div className="absolute left-4 top-4 z-[1000] glass-panel rounded-lg p-3 space-y-2">
-        <div className="text-xs font-medium text-foreground mb-2">Transport holati</div>
-        <div className="flex items-center gap-2 text-xs">
-          <div className="w-3 h-3 rounded-full bg-green-500" />
-          <span className="text-muted-foreground">Faol</span>
+      {/* Fullscreen toggle */}
+      <div className="absolute right-4 top-4 z-[1000] flex gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onToggleFullscreen}
+          className="glass-panel border-border/50 hover:bg-accent"
+        >
+          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+        </Button>
+      </div>
+
+      {/* Legend - hide in fullscreen for cleaner view */}
+      {!isFullscreen && (
+        <div className="absolute left-4 top-4 z-[1000] glass-panel rounded-lg p-3 space-y-2">
+          <div className="text-xs font-medium text-foreground mb-2">Transport holati</div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-3 h-3 rounded-full bg-green-500" />
+            <span className="text-muted-foreground">Faol</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-3 h-3 rounded-full bg-yellow-500" />
+            <span className="text-muted-foreground">Kutish</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-3 h-3 rounded-full bg-red-500" />
+            <span className="text-muted-foreground">O'chiq</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 text-xs">
-          <div className="w-3 h-3 rounded-full bg-yellow-500" />
-          <span className="text-muted-foreground">Kutish</span>
+      )}
+
+      {/* Geofence Controls */}
+      <div className={`absolute ${isFullscreen ? 'left-4 top-4' : 'left-4 top-36'} z-[1000] glass-panel rounded-lg p-3 space-y-2`}>
+        <div className="text-xs font-medium text-foreground mb-2 flex items-center gap-2">
+          <Shield className="w-4 h-4 text-violet-500" />
+          Geo-chegara
         </div>
-        <div className="flex items-center gap-2 text-xs">
-          <div className="w-3 h-3 rounded-full bg-red-500" />
-          <span className="text-muted-foreground">O'chiq</span>
-        </div>
+        <Button
+          variant={showGeofences ? "default" : "outline"}
+          size="sm"
+          onClick={() => {
+            setShowGeofences(!showGeofences);
+            toast.info(showGeofences ? "Geo-chegaralar yashirildi" : "Geo-chegaralar ko'rsatildi");
+          }}
+          className="w-full text-xs"
+        >
+          {showGeofences ? "Yashirish" : "Ko'rsatish"}
+        </Button>
+        {geofenceAlerts.length > 0 && (
+          <div className="mt-2 p-2 bg-destructive/20 rounded border border-destructive/50">
+            <div className="flex items-center gap-1 text-xs text-destructive">
+              <ShieldAlert className="w-3 h-3" />
+              <span>{geofenceAlerts.length} ta ogohlantirish</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stats */}
-      <div className="absolute right-4 top-20 z-[1000] glass-panel rounded-lg p-3 space-y-2 text-xs">
+      <div className={`absolute ${isFullscreen ? 'right-16' : 'right-4'} top-16 z-[1000] glass-panel rounded-lg p-3 space-y-2 text-xs`}>
         <div className="flex items-center gap-2">
           <Car className="w-4 h-4 text-primary" />
           <span className="text-muted-foreground">Jami:</span>
@@ -238,17 +365,43 @@ export const MapVisualization = () => {
         </div>
       </div>
 
+      {/* Geofence Alerts Panel - shown in fullscreen */}
+      {isFullscreen && geofenceAlerts.length > 0 && (
+        <div className="absolute left-4 bottom-24 z-[1000] glass-panel rounded-lg p-3 max-w-xs">
+          <div className="flex items-center gap-2 text-xs font-medium text-destructive mb-2">
+            <ShieldAlert className="w-4 h-4" />
+            Geofence ogohlantirishlari
+          </div>
+          <div className="space-y-1 max-h-32 overflow-y-auto">
+            {geofenceAlerts.map((alert, i) => (
+              <div key={i} className="text-xs text-muted-foreground bg-destructive/10 rounded px-2 py-1">
+                {alert}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Chevron indicator */}
-      <div className="absolute bottom-20 left-1/2 -translate-x-1/2 text-muted-foreground animate-bounce z-[1000]">
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </div>
+      {!isFullscreen && (
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 text-muted-foreground animate-bounce z-[1000]">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      )}
 
       {/* Timeline */}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/95 to-transparent pt-10 pb-2 z-[1000]">
         <TimelineSelector selectedHour={selectedHour} onHourChange={setSelectedHour} />
       </div>
+
+      {/* ESC hint in fullscreen */}
+      {isFullscreen && (
+        <div className="absolute bottom-4 right-4 z-[1000] text-xs text-muted-foreground glass-panel rounded px-2 py-1">
+          ESC yoki <Minimize2 className="w-3 h-3 inline" /> tugmasini bosing
+        </div>
+      )}
     </div>
   );
 };

@@ -6,6 +6,7 @@ import { TrackingResultsPanel } from "@/components/dashboard/PredictionResults";
 import { MapVisualization } from "@/components/dashboard/MapVisualization";
 import { MapLayersPanel } from "@/components/dashboard/VisualizationLayers";
 import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
+import { Navbar } from "@/components/layout/Navbar";
 
 const Index = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -36,10 +37,12 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-hidden">
+      <Navbar />
+      
       {/* Main Dashboard Container */}
-      <div className="relative h-screen flex flex-col">
+      <div className="relative h-screen flex flex-col pt-14">
         {/* Theme Toggle - Fixed Position */}
-        <div className="absolute top-4 right-4 z-50">
+        <div className="fixed top-4 right-4 z-[101]">
           <ThemeToggle />
         </div>
 

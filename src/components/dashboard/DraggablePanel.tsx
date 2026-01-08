@@ -4,27 +4,69 @@ import { useDraggable } from "@/hooks/useDraggable";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
+type AnchorPosition = 'top-left' | 'top-right' | 'top-center' | 'center-left' | 'center-right';
+
 interface DraggablePanelProps {
   children: ReactNode;
   storageKey: string;
-  initialPosition?: { x: number; y: number };
+  anchor?: AnchorPosition;
+  offsetX?: number;
+  offsetY?: number;
   className?: string;
 }
+
+const getAnchorStyles = (anchor: AnchorPosition, offsetX: number, offsetY: number): React.CSSProperties => {
+  const base: React.CSSProperties = { position: 'absolute' };
+  
+  switch (anchor) {
+    case 'top-left':
+      return { ...base, left: offsetX, top: offsetY };
+    case 'top-right':
+      return { ...base, right: offsetX, top: offsetY };
+    case 'top-center':
+      return { ...base, left: '50%', top: offsetY, transform: 'translateX(-50%)' };
+    case 'center-left':
+      return { ...base, left: offsetX, top: '50%', transform: 'translateY(-50%)' };
+    case 'center-right':
+      return { ...base, right: offsetX, top: '50%', transform: 'translateY(-50%)' };
+    default:
+      return { ...base, left: offsetX, top: offsetY };
+  }
+};
 
 export const DraggablePanel = ({ 
   children, 
   storageKey, 
-  initialPosition = { x: 0, y: 0 },
+  anchor = 'top-left',
+  offsetX = 16,
+  offsetY = 16,
   className = ""
 }: DraggablePanelProps) => {
-  const { position, isDragging, dragRef, handleMouseDown, resetPosition, style } = useDraggable({
-    initialPosition,
+  const { position, isDragging, dragRef, handleMouseDown, resetPosition } = useDraggable({
+    initialPosition: { x: 0, y: 0 },
     storageKey,
   });
+
+  const anchorStyles = getAnchorStyles(anchor, offsetX, offsetY);
 
   const handleReset = () => {
     resetPosition();
     toast.info("Panel holati tiklandi");
+  };
+
+  // Combine anchor transform with drag offset
+  const getCombinedTransform = () => {
+    const baseTransform = anchor === 'top-center' 
+      ? 'translateX(-50%)' 
+      : anchor === 'center-left' || anchor === 'center-right'
+        ? 'translateY(-50%)'
+        : '';
+    
+    if (position.x === 0 && position.y === 0) {
+      return baseTransform || undefined;
+    }
+    
+    return `${baseTransform} translate(${position.x}px, ${position.y}px)`.trim();
   };
 
   return (
@@ -32,10 +74,8 @@ export const DraggablePanel = ({
       ref={dragRef}
       onMouseDown={handleMouseDown}
       style={{
-        ...style,
-        transform: `translate(${position.x}px, ${position.y}px)`,
-        left: 0,
-        top: 0,
+        ...anchorStyles,
+        transform: getCombinedTransform(),
       }}
       className={`group transition-shadow ${isDragging ? 'shadow-2xl ring-2 ring-primary/50' : ''} ${className}`}
     >

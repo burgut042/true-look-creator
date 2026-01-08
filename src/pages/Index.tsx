@@ -62,7 +62,9 @@ const Index = () => {
             {/* Left Panel */}
             <DraggablePanel 
               storageKey="tracking-params" 
-              initialPosition={{ x: 16, y: 8 }}
+              anchor="top-left"
+              offsetX={16}
+              offsetY={16}
               className="pointer-events-auto max-w-xs"
             >
               <TrackingParametersPanel />
@@ -71,7 +73,8 @@ const Index = () => {
             {/* Center Top - Vehicle Toggle */}
             <DraggablePanel 
               storageKey="vehicle-toggle" 
-              initialPosition={{ x: 400, y: 8 }}
+              anchor="top-center"
+              offsetY={16}
               className="pointer-events-auto"
             >
               <VehicleStatusToggle />
@@ -80,7 +83,8 @@ const Index = () => {
             {/* Center - Vehicle Info */}
             <DraggablePanel 
               storageKey="vehicle-info" 
-              initialPosition={{ x: 400, y: 140 }}
+              anchor="top-center"
+              offsetY={140}
               className="pointer-events-auto"
             >
               <VehicleInfoPanel />
@@ -89,7 +93,9 @@ const Index = () => {
             {/* Right Panel */}
             <DraggablePanel 
               storageKey="tracking-results" 
-              initialPosition={{ x: 800, y: 48 }}
+              anchor="top-right"
+              offsetX={16}
+              offsetY={16}
               className="pointer-events-auto max-w-xs"
             >
               <TrackingResultsPanel />

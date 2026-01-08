@@ -7,6 +7,7 @@ import { MapVisualization } from "@/components/dashboard/MapVisualization";
 import { MapLayersPanel } from "@/components/dashboard/VisualizationLayers";
 import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
 import { Navbar } from "@/components/layout/Navbar";
+import { DraggablePanel } from "@/components/dashboard/DraggablePanel";
 
 const Index = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -56,23 +57,43 @@ const Index = () => {
             />
           </div>
 
-          {/* Overlay Panels */}
-          <div className="relative z-10 flex justify-between items-start h-full pointer-events-none pt-2">
+          {/* Draggable Panels Container */}
+          <div className="relative z-10 h-full w-full pointer-events-none">
             {/* Left Panel */}
-            <div className="flex flex-col gap-4 pointer-events-auto max-w-xs">
+            <DraggablePanel 
+              storageKey="tracking-params" 
+              initialPosition={{ x: 16, y: 8 }}
+              className="pointer-events-auto max-w-xs"
+            >
               <TrackingParametersPanel />
-            </div>
+            </DraggablePanel>
 
-            {/* Center Top Panels */}
-            <div className="flex flex-col items-center gap-4 pt-0 pointer-events-auto">
+            {/* Center Top - Vehicle Toggle */}
+            <DraggablePanel 
+              storageKey="vehicle-toggle" 
+              initialPosition={{ x: 400, y: 8 }}
+              className="pointer-events-auto"
+            >
               <VehicleStatusToggle />
+            </DraggablePanel>
+
+            {/* Center - Vehicle Info */}
+            <DraggablePanel 
+              storageKey="vehicle-info" 
+              initialPosition={{ x: 400, y: 140 }}
+              className="pointer-events-auto"
+            >
               <VehicleInfoPanel />
-            </div>
+            </DraggablePanel>
 
             {/* Right Panel */}
-            <div className="flex flex-col gap-4 pointer-events-auto max-w-xs mt-12">
+            <DraggablePanel 
+              storageKey="tracking-results" 
+              initialPosition={{ x: 800, y: 48 }}
+              className="pointer-events-auto max-w-xs"
+            >
               <TrackingResultsPanel />
-            </div>
+            </DraggablePanel>
           </div>
         </div>
 

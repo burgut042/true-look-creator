@@ -22,10 +22,10 @@ export interface PanelVisibility {
 }
 
 const defaultPanels: PanelVisibility = {
-  trackingParams: true,
-  vehicleToggle: true,
-  vehicleInfo: true,
-  trackingResults: true,
+  trackingParams: false,
+  vehicleToggle: false,
+  vehicleInfo: false,
+  trackingResults: false,
 };
 
 export const usePanelVisibility = () => {

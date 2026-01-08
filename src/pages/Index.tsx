@@ -118,7 +118,7 @@ const Index = () => {
             </div>
 
             {/* Bottom Section - Map Layers */}
-            <div className="relative z-20 bg-gradient-to-t from-background via-background/95 to-transparent pt-8">
+            <div className="relative z-20 bg-gradient-to-t from-background via-background/95 to-transparent pt-2">
               <div className="bg-card/50 backdrop-blur-sm border-t border-border/30">
                 <MapLayersPanel />
               </div>

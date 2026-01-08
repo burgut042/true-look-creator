@@ -27,7 +27,7 @@ const layers = [
 ];
 
 export const MapLayersPanel = () => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [selectedLayers, setSelectedLayers] = useState<string[]>(["live-tracking"]);
 
   const toggleLayer = (id: string, name: string) => {

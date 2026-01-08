@@ -5,12 +5,14 @@ import { VehicleInfoPanel } from "@/components/dashboard/InterconnectedParams";
 import { TrackingResultsPanel } from "@/components/dashboard/PredictionResults";
 import { MapVisualization } from "@/components/dashboard/MapVisualization";
 import { MapLayersPanel } from "@/components/dashboard/VisualizationLayers";
-import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
-import { Navbar } from "@/components/layout/Navbar";
 import { DraggablePanel } from "@/components/dashboard/DraggablePanel";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/layout/AppSidebar";
+import { Header, usePanelVisibility } from "@/components/layout/Header";
 
 const Index = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const { panels, togglePanel, showAll, hideAll } = usePanelVisibility();
 
   // Handle ESC key to exit fullscreen
   useEffect(() => {
@@ -37,80 +39,94 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-hidden">
-      <Navbar />
-      
-      {/* Main Dashboard Container */}
-      <div className="relative h-screen flex flex-col pt-14">
-        {/* Theme Toggle - Fixed Position */}
-        <div className="fixed top-4 right-4 z-[101]">
-          <ThemeToggle />
-        </div>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background text-foreground">
+        <AppSidebar />
+        
+        <div className="flex-1 flex flex-col">
+          <Header 
+            panels={panels}
+            onTogglePanel={togglePanel}
+            onShowAll={showAll}
+            onHideAll={hideAll}
+          />
 
-        {/* Top Section */}
-        <div className="flex-1 relative p-4 overflow-hidden">
-          {/* Background Map */}
-          <div className="absolute inset-0 z-0">
-            <MapVisualization 
-              isFullscreen={false}
-              onToggleFullscreen={() => setIsFullscreen(true)}
-            />
-          </div>
+          {/* Main Dashboard Container */}
+          <div className="relative flex-1 flex flex-col pt-14">
+            {/* Top Section */}
+            <div className="flex-1 relative p-4 overflow-hidden">
+              {/* Background Map */}
+              <div className="absolute inset-0 z-0">
+                <MapVisualization 
+                  isFullscreen={false}
+                  onToggleFullscreen={() => setIsFullscreen(true)}
+                />
+              </div>
 
-          {/* Draggable Panels Container */}
-          <div className="relative z-10 h-full w-full pointer-events-none">
-            {/* Left Panel */}
-            <DraggablePanel 
-              storageKey="tracking-params" 
-              anchor="top-left"
-              offsetX={16}
-              offsetY={16}
-              className="pointer-events-auto max-w-xs"
-            >
-              <TrackingParametersPanel />
-            </DraggablePanel>
+              {/* Draggable Panels Container */}
+              <div className="relative z-10 h-full w-full pointer-events-none">
+                {/* Left Panel */}
+                {panels.trackingParams && (
+                  <DraggablePanel 
+                    storageKey="tracking-params" 
+                    anchor="top-left"
+                    offsetX={16}
+                    offsetY={16}
+                    className="pointer-events-auto max-w-xs"
+                  >
+                    <TrackingParametersPanel />
+                  </DraggablePanel>
+                )}
 
-            {/* Center Top - Vehicle Toggle */}
-            <DraggablePanel 
-              storageKey="vehicle-toggle" 
-              anchor="top-center"
-              offsetY={16}
-              className="pointer-events-auto"
-            >
-              <VehicleStatusToggle />
-            </DraggablePanel>
+                {/* Center Top - Vehicle Toggle */}
+                {panels.vehicleToggle && (
+                  <DraggablePanel 
+                    storageKey="vehicle-toggle" 
+                    anchor="top-center"
+                    offsetY={16}
+                    className="pointer-events-auto"
+                  >
+                    <VehicleStatusToggle />
+                  </DraggablePanel>
+                )}
 
-            {/* Center - Vehicle Info */}
-            <DraggablePanel 
-              storageKey="vehicle-info" 
-              anchor="top-center"
-              offsetY={140}
-              className="pointer-events-auto"
-            >
-              <VehicleInfoPanel />
-            </DraggablePanel>
+                {/* Center - Vehicle Info */}
+                {panels.vehicleInfo && (
+                  <DraggablePanel 
+                    storageKey="vehicle-info" 
+                    anchor="top-center"
+                    offsetY={140}
+                    className="pointer-events-auto"
+                  >
+                    <VehicleInfoPanel />
+                  </DraggablePanel>
+                )}
 
-            {/* Right Panel */}
-            <DraggablePanel 
-              storageKey="tracking-results" 
-              anchor="top-right"
-              offsetX={16}
-              offsetY={16}
-              className="pointer-events-auto max-w-xs"
-            >
-              <TrackingResultsPanel />
-            </DraggablePanel>
-          </div>
-        </div>
+                {/* Right Panel */}
+                {panels.trackingResults && (
+                  <DraggablePanel 
+                    storageKey="tracking-results" 
+                    anchor="top-right"
+                    offsetX={16}
+                    offsetY={16}
+                    className="pointer-events-auto max-w-xs"
+                  >
+                    <TrackingResultsPanel />
+                  </DraggablePanel>
+                )}
+              </div>
+            </div>
 
-        {/* Bottom Section - Map Layers */}
-        <div className="relative z-20 bg-gradient-to-t from-background via-background/95 to-transparent pt-8">
-          <div className="bg-card/50 backdrop-blur-sm border-t border-border/30">
-            <MapLayersPanel />
+            {/* Bottom Section - Map Layers */}
+            <div className="relative z-20 bg-gradient-to-t from-background via-background/95 to-transparent pt-8">
+              <div className="bg-card/50 backdrop-blur-sm border-t border-border/30">
+                <MapLayersPanel />
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 

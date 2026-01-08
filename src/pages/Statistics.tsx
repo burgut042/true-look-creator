@@ -1,15 +1,17 @@
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  BarChart3, 
-  Car, 
-  Fuel, 
-  MapPin, 
-  Clock, 
-  TrendingUp, 
+import {
+  BarChart3,
+  Car,
+  Fuel,
+  MapPin,
+  Clock,
+  TrendingUp,
   TrendingDown,
-  Activity
+  Activity,
+  Loader2
 } from "lucide-react";
 import {
   AreaChart,
@@ -25,41 +27,132 @@ import {
   Pie,
   Cell,
 } from "recharts";
-
-const weeklyData = [
-  { name: "Dush", distance: 245, fuel: 32 },
-  { name: "Sesh", distance: 312, fuel: 41 },
-  { name: "Chor", distance: 198, fuel: 26 },
-  { name: "Pay", distance: 287, fuel: 38 },
-  { name: "Jum", distance: 356, fuel: 47 },
-  { name: "Shan", distance: 142, fuel: 19 },
-  { name: "Yak", distance: 89, fuel: 12 },
-];
-
-const vehicleUsage = [
-  { name: "Toyota Camry", value: 35, color: "#22d3ee" },
-  { name: "Chevrolet Lacetti", value: 28, color: "#8b5cf6" },
-  { name: "Isuzu NPR", value: 22, color: "#22c55e" },
-  { name: "Boshqalar", value: 15, color: "#f59e0b" },
-];
-
-const speedData = [
-  { time: "06:00", speed: 45 },
-  { time: "08:00", speed: 62 },
-  { time: "10:00", speed: 78 },
-  { time: "12:00", speed: 55 },
-  { time: "14:00", speed: 68 },
-  { time: "16:00", speed: 82 },
-  { time: "18:00", speed: 71 },
-  { time: "20:00", speed: 48 },
-  { time: "22:00", speed: 35 },
-];
+import { statsAPI } from "@/lib/api";
+import { useVehicles } from "@/contexts/VehicleContext";
+import { toast } from "sonner";
 
 const Statistics = () => {
+  const { vehicles } = useVehicles();
+  const [weeklyStats, setWeeklyStats] = useState<any[]>([]);
+  const [vehicleUsage, setVehicleUsage] = useState<any[]>([]);
+  const [speedData, setSpeedData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Calculate summary stats
+  const totalDistance = weeklyStats.reduce((sum, day) => sum + (parseFloat(day.total_distance) || 0), 0);
+  const totalTrips = weeklyStats.reduce((sum, day) => sum + (parseInt(day.trips_count) || 0), 0);
+  const avgSpeed = weeklyStats.length > 0
+    ? weeklyStats.reduce((sum, day) => sum + (parseFloat(day.avg_speed) || 0), 0) / weeklyStats.length
+    : 0;
+
+  // Count active vehicles
+  const activeVehicles = vehicles.filter(v => v.status === 'online').length;
+  const idleVehicles = vehicles.filter(v => v.status === 'idle').length;
+  const totalVehicles = vehicles.length;
+
+  useEffect(() => {
+    loadStatistics();
+  }, []);
+
+  const loadStatistics = async () => {
+    try {
+      setLoading(true);
+
+      // Load weekly stats
+      const weeklyResponse = await statsAPI.getWeekly();
+      const weeklyData = weeklyResponse.data.stats || [];
+
+      // Format for charts
+      const daysMap: any = {
+        0: 'Yak', 1: 'Dush', 2: 'Sesh', 3: 'Chor',
+        4: 'Pay', 5: 'Jum', 6: 'Shan'
+      };
+
+      const formattedWeekly = weeklyData.map((day: any) => {
+        const date = new Date(day.stat_date);
+        const dayName = daysMap[date.getDay()];
+        return {
+          name: dayName,
+          distance: parseFloat(day.total_distance) || 0,
+          fuel: (parseFloat(day.total_distance) || 0) * 0.13 // Estimate fuel (13L per 100km)
+        };
+      });
+      setWeeklyStats(weeklyData);
+
+      // Load vehicle usage
+      const usageResponse = await statsAPI.getVehicleUsage();
+      const usageData = usageResponse.data.usage || [];
+
+      const colors = ['#22d3ee', '#8b5cf6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899'];
+      const totalDist = usageData.reduce((sum: number, v: any) => sum + parseFloat(v.total_distance || 0), 0);
+
+      const formattedUsage = usageData.slice(0, 5).map((v: any, idx: number) => ({
+        name: v.name || 'Unknown',
+        value: totalDist > 0 ? Math.round((parseFloat(v.total_distance || 0) / totalDist) * 100) : 0,
+        color: colors[idx % colors.length]
+      }));
+
+      // Add "Others" if more than 5 vehicles
+      if (usageData.length > 5) {
+        const othersPercent = 100 - formattedUsage.reduce((sum: number, item: any) => sum + item.value, 0);
+        formattedUsage.push({
+          name: 'Boshqalar',
+          value: othersPercent > 0 ? othersPercent : 0,
+          color: '#64748b'
+        });
+      }
+
+      setVehicleUsage(formattedUsage);
+
+      // Load speed data
+      const speedResponse = await statsAPI.getSpeedData();
+      const speedDataRaw = speedResponse.data.speedData || [];
+
+      const formattedSpeed = speedDataRaw.map((item: any) => ({
+        time: new Date(item.date).toLocaleDateString('uz-UZ', { weekday: 'short' }),
+        speed: Math.round(parseFloat(item.avg_speed) || 0)
+      }));
+      setSpeedData(formattedSpeed);
+
+      // Use weekly data for bar chart if available
+      if (formattedWeekly.length > 0) {
+        // Sort by day of week
+        const sortedWeekly = [...formattedWeekly].sort((a, b) => {
+          const order = ['Dush', 'Sesh', 'Chor', 'Pay', 'Jum', 'Shan', 'Yak'];
+          return order.indexOf(a.name) - order.indexOf(b.name);
+        });
+        // Use this for weekly chart instead of creating new array
+        setWeeklyStats(sortedWeekly);
+      }
+
+    } catch (error: any) {
+      console.error('Error loading statistics:', error);
+      toast.error('Statistika yuklashda xatolik yuz berdi');
+
+      // Set default empty data
+      setWeeklyStats([]);
+      setVehicleUsage([]);
+      setSpeedData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Statistika yuklanmoqda...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
-      
+
       {/* Theme Toggle */}
       <div className="fixed top-4 right-4 z-[101]">
         <ThemeToggle />
@@ -83,15 +176,15 @@ const Statistics = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Jami masofa</p>
-                  <p className="text-2xl font-bold">1,629 km</p>
+                  <p className="text-2xl font-bold">{totalDistance.toFixed(0)} km</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
                   <MapPin className="w-6 h-6 text-primary" />
                 </div>
               </div>
-              <div className="flex items-center gap-1 mt-2 text-xs text-green-500">
-                <TrendingUp className="w-3 h-3" />
-                <span>+12% o'tgan haftaga nisbatan</span>
+              <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+                <Activity className="w-3 h-3" />
+                <span>So'nggi 7 kun</span>
               </div>
             </CardContent>
           </Card>
@@ -100,16 +193,16 @@ const Statistics = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Yoqilg'i sarfi</p>
-                  <p className="text-2xl font-bold">215 L</p>
+                  <p className="text-sm text-muted-foreground">Jami safar</p>
+                  <p className="text-2xl font-bold">{totalTrips}</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center">
-                  <Fuel className="w-6 h-6 text-orange-500" />
+                  <Car className="w-6 h-6 text-orange-500" />
                 </div>
               </div>
-              <div className="flex items-center gap-1 mt-2 text-xs text-red-500">
-                <TrendingDown className="w-3 h-3" />
-                <span>-5% o'tgan haftaga nisbatan</span>
+              <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+                <Activity className="w-3 h-3" />
+                <span>So'nggi 7 kun</span>
               </div>
             </CardContent>
           </Card>
@@ -119,7 +212,7 @@ const Statistics = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Faol transport</p>
-                  <p className="text-2xl font-bold">8 / 12</p>
+                  <p className="text-2xl font-bold">{activeVehicles} / {totalVehicles}</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
                   <Car className="w-6 h-6 text-green-500" />
@@ -127,7 +220,7 @@ const Statistics = () => {
               </div>
               <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
                 <Activity className="w-3 h-3" />
-                <span>4 ta kutish rejimida</span>
+                <span>{idleVehicles} ta kutish rejimida</span>
               </div>
             </CardContent>
           </Card>
@@ -137,15 +230,15 @@ const Statistics = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">O'rtacha tezlik</p>
-                  <p className="text-2xl font-bold">58 km/s</p>
+                  <p className="text-2xl font-bold">{avgSpeed.toFixed(0)} km/s</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-violet-500/20 flex items-center justify-center">
                   <Clock className="w-6 h-6 text-violet-500" />
                 </div>
               </div>
-              <div className="flex items-center gap-1 mt-2 text-xs text-green-500">
-                <TrendingUp className="w-3 h-3" />
-                <span>+3% o'tgan haftaga nisbatan</span>
+              <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+                <Activity className="w-3 h-3" />
+                <span>So'nggi 7 kun</span>
               </div>
             </CardContent>
           </Card>
@@ -156,26 +249,32 @@ const Statistics = () => {
           {/* Weekly Distance Chart */}
           <Card className="glass-panel border-border/30">
             <CardHeader>
-              <CardTitle className="text-base">Haftalik masofa va yoqilg'i</CardTitle>
+              <CardTitle className="text-base">Haftalik masofa</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
-                      }}
-                    />
-                    <Bar dataKey="distance" name="Masofa (km)" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="fuel" name="Yoqilg'i (L)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {weeklyStats.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={weeklyStats}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Bar dataKey="distance" name="Masofa (km)" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="fuel" name="Yoqilg'i (L)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-muted-foreground">
+                    Ma'lumot yo'q
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -187,31 +286,35 @@ const Statistics = () => {
             </CardHeader>
             <CardContent>
               <div className="h-64 flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={vehicleUsage}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {vehicleUsage.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
-                      }}
-                      formatter={(value) => [`${value}%`, '']}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                {vehicleUsage.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={vehicleUsage}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {vehicleUsage.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                        formatter={(value) => [`${value}%`, '']}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-muted-foreground">Ma'lumot yo'q</div>
+                )}
               </div>
               <div className="flex flex-wrap justify-center gap-4 mt-2">
                 {vehicleUsage.map((item) => (
@@ -232,28 +335,34 @@ const Statistics = () => {
           </CardHeader>
           <CardContent>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={speedData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                    formatter={(value) => [`${value} km/s`, 'Tezlik']}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="speed" 
-                    stroke="hsl(var(--primary))" 
-                    fill="hsl(var(--primary) / 0.2)" 
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {speedData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={speedData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                      formatter={(value) => [`${value} km/s`, 'Tezlik']}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="speed"
+                      stroke="hsl(var(--primary))"
+                      fill="hsl(var(--primary) / 0.2)"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground">
+                  Ma'lumot yo'q
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

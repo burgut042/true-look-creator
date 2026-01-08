@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -14,10 +15,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { 
-  PlusCircle, 
-  Car, 
-  Truck, 
+import {
+  PlusCircle,
+  Car,
+  Truck,
   Bike,
   User,
   Phone,
@@ -28,8 +29,13 @@ import {
   RotateCcw
 } from "lucide-react";
 import { toast } from "sonner";
+import { vehicleAPI } from "@/lib/api";
+import { useVehicles } from "@/contexts/VehicleContext";
 
 const AddVehicle = () => {
+  const navigate = useNavigate();
+  const { refreshVehicles } = useVehicles();
+  const [loading, setLoading] = useState(false);
   const [vehicleType, setVehicleType] = useState("car");
   const [formData, setFormData] = useState({
     name: "",
@@ -50,9 +56,9 @@ const AddVehicle = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name || !formData.plateNumber) {
       toast.error("Majburiy maydonlarni to'ldiring", {
         description: "Transport nomi va raqami kiritilishi shart"
@@ -60,12 +66,45 @@ const AddVehicle = () => {
       return;
     }
 
-    toast.success("Transport muvaffaqiyatli qo'shildi!", {
-      description: `${formData.name} (${formData.plateNumber}) tizimga qo'shildi`
-    });
+    try {
+      setLoading(true);
 
-    // Reset form
-    handleReset();
+      // Map frontend field names to backend API field names
+      const vehicleData = {
+        name: formData.name,
+        plate_number: formData.plateNumber,
+        type: vehicleType,
+        model: formData.model || undefined,
+        year: formData.year ? parseInt(formData.year) : undefined,
+        color: formData.color || undefined,
+        fuel_type: formData.fuelType || undefined,
+        driver_name: formData.driverName || undefined,
+        driver_phone: formData.driverPhone || undefined,
+        notes: formData.notes || undefined,
+        enable_geofence: formData.enableGeofence,
+        enable_speed_alert: formData.enableSpeedAlert,
+        max_speed: parseInt(formData.maxSpeed)
+      };
+
+      await vehicleAPI.create(vehicleData);
+
+      // Refresh vehicles list in context
+      await refreshVehicles();
+
+      toast.success("Transport muvaffaqiyatli qo'shildi!", {
+        description: `${formData.name} (${formData.plateNumber}) tizimga qo'shildi`
+      });
+
+      // Navigate to dashboard
+      navigate('/');
+    } catch (error: any) {
+      console.error('Error creating vehicle:', error);
+      toast.error("Xatolik yuz berdi", {
+        description: error.response?.data?.message || "Transport qo'shishda xatolik"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleReset = () => {
@@ -335,13 +374,13 @@ const AddVehicle = () => {
 
           {/* Actions */}
           <div className="flex justify-end gap-4">
-            <Button type="button" variant="outline" onClick={handleReset}>
+            <Button type="button" variant="outline" onClick={handleReset} disabled={loading}>
               <RotateCcw className="w-4 h-4 mr-2" />
               Tozalash
             </Button>
-            <Button type="submit">
+            <Button type="submit" disabled={loading}>
               <Save className="w-4 h-4 mr-2" />
-              Saqlash
+              {loading ? "Saqlanmoqda..." : "Saqlash"}
             </Button>
           </div>
         </form>

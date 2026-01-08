@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Car, Navigation, Shield, ShieldAlert, Maximize2, Minimize2, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useVehicles } from "@/contexts/VehicleContext";
 
 // Yandex Maps API type declarations
 declare global {
@@ -26,12 +27,6 @@ interface Geofence {
   radius: number;
   active: boolean;
 }
-
-const vehicles: VehicleMarker[] = [
-  { id: 1, lat: 41.3111, lng: 69.2797, name: "Toyota Camry - 01A123BC", speed: 67, status: "online" },
-  { id: 2, lat: 41.2856, lng: 69.2035, name: "Chevrolet Lacetti - 01B456CD", speed: 0, status: "idle" },
-  { id: 3, lat: 41.3337, lng: 69.2890, name: "Isuzu NPR - 01C789EF", speed: 45, status: "online" },
-];
 
 // Geofences removed - using district boundaries from GeoJSON instead
 const geofences: Geofence[] = [];
@@ -130,6 +125,21 @@ interface MapVisualizationProps {
 }
 
 export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: MapVisualizationProps) => {
+  // Get vehicles from context
+  const { vehicles: vehiclesFromContext, loading: vehiclesLoading } = useVehicles();
+
+  // Map vehicles to VehicleMarker format
+  const vehicles: VehicleMarker[] = vehiclesFromContext
+    .filter(v => v.location && v.location.latitude && v.location.longitude)
+    .map(v => ({
+      id: v.id,
+      lat: v.location!.latitude,
+      lng: v.location!.longitude,
+      name: `${v.name} - ${v.plate_number}`,
+      speed: v.location!.speed || 0,
+      status: v.status
+    }));
+
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const vehicleMarkerRefs = useRef<any[]>([]);
@@ -137,7 +147,7 @@ export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: M
   const routeRef = useRef<any>(null);
   const applyThemeRef = useRef<((dark: boolean) => void) | null>(null);
   const districtLayersRef = useRef<any[]>([]);
-  const [selectedVehicle, setSelectedVehicle] = useState<number | null>(1);
+  const [selectedVehicle, setSelectedVehicle] = useState<number | null>(null);
   const [selectedHours, setSelectedHours] = useState<string[]>(["01:00"]);
   const [showGeofences, setShowGeofences] = useState(false);
   const [geofenceAlerts, setGeofenceAlerts] = useState<string[]>([]);
@@ -523,7 +533,7 @@ export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: M
     });
   }, [showGeofences, mapReady]);
 
-  // Update vehicle marker when selection changes
+  // Update vehicle marker when selection changes or vehicles update
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
 
@@ -586,7 +596,7 @@ export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: M
       mapInstanceRef.current.geoObjects.add(placemark);
       vehicleMarkerRefs.current.push(placemark);
     });
-  }, [selectedVehicle, mapReady]);
+  }, [selectedVehicle, vehicles, mapReady]);
 
   return (
     <div className={`relative flex-1 h-full min-h-[500px] rounded-lg overflow-hidden ${isFullscreen ? 'fixed inset-0 z-[9999] rounded-none' : ''}`}>

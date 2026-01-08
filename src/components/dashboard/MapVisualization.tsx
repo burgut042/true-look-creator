@@ -34,36 +34,89 @@ const geofences: Geofence[] = [
 ];
 
 interface TimelineSelectorProps {
-  selectedHour: string;
-  onHourChange: (hour: string) => void;
+  selectedHours: string[];
+  onHoursChange: (hours: string[]) => void;
 }
 
-const TimelineSelector = ({ selectedHour, onHourChange }: TimelineSelectorProps) => {
+const TimelineSelector = ({ selectedHours, onHoursChange }: TimelineSelectorProps) => {
   const hours = [
     "00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00", "07:00", "08:00", "09:00", "10:00", "11:00",
     "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"
   ];
 
+  const toggleHour = (hour: string, e: React.MouseEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      // Multi-select with Ctrl/Cmd
+      if (selectedHours.includes(hour)) {
+        const newHours = selectedHours.filter(h => h !== hour);
+        onHoursChange(newHours.length > 0 ? newHours : [hour]);
+      } else {
+        onHoursChange([...selectedHours, hour]);
+      }
+    } else if (e.shiftKey && selectedHours.length > 0) {
+      // Range select with Shift
+      const lastSelected = selectedHours[selectedHours.length - 1];
+      const lastIndex = hours.indexOf(lastSelected);
+      const currentIndex = hours.indexOf(hour);
+      const start = Math.min(lastIndex, currentIndex);
+      const end = Math.max(lastIndex, currentIndex);
+      const rangeHours = hours.slice(start, end + 1);
+      const uniqueHours = [...new Set([...selectedHours, ...rangeHours])];
+      onHoursChange(uniqueHours);
+    } else {
+      // Single select
+      onHoursChange([hour]);
+    }
+    
+    if (selectedHours.includes(hour) && !e.ctrlKey && !e.metaKey) {
+      toast.info(`Vaqt: ${hour}`);
+    } else {
+      const count = e.ctrlKey || e.metaKey || e.shiftKey 
+        ? (selectedHours.includes(hour) ? selectedHours.length - 1 : selectedHours.length + 1)
+        : 1;
+      toast.info(`${count} ta soat tanlandi`);
+    }
+  };
+
+  const clearSelection = () => {
+    onHoursChange(["14:00"]);
+    toast.info("Tanlov tozalandi");
+  };
+
   return (
-    <div className="flex items-center gap-1 overflow-x-auto pb-2 px-4">
-      {hours.map((hour, i) => (
-        <button
-          key={i}
-          onClick={() => {
-            onHourChange(hour);
-            toast.info(`Vaqt: ${hour}`);
-          }}
-          className={`px-3 py-1.5 text-xs whitespace-nowrap rounded-lg transition-all ${
-            selectedHour === hour
-              ? "bg-primary text-primary-foreground"
-              : hour === "14:00"
-              ? "bg-secondary text-secondary-foreground"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-          }`}
-        >
-          {hour}
-        </button>
-      ))}
+    <div className="space-y-2">
+      <div className="flex items-center justify-between px-4">
+        <div className="text-xs text-muted-foreground">
+          <span className="text-foreground font-medium">{selectedHours.length}</span> ta soat tanlangan
+          <span className="ml-2 opacity-60">(Ctrl+click - ko'p tanlash, Shift+click - diapazon)</span>
+        </div>
+        {selectedHours.length > 1 && (
+          <button
+            onClick={clearSelection}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Tozalash
+          </button>
+        )}
+      </div>
+      <div className="flex items-center gap-1 overflow-x-auto pb-2 px-4">
+        {hours.map((hour, i) => {
+          const isSelected = selectedHours.includes(hour);
+          return (
+            <button
+              key={i}
+              onClick={(e) => toggleHour(hour, e)}
+              className={`px-3 py-1.5 text-xs whitespace-nowrap rounded-lg transition-all ${
+                isSelected
+                  ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              }`}
+            >
+              {hour}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -79,7 +132,7 @@ export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: M
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const geofenceLayersRef = useRef<L.Circle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<number | null>(1);
-  const [selectedHour, setSelectedHour] = useState("14:00");
+  const [selectedHours, setSelectedHours] = useState<string[]>(["14:00"]);
   const [showGeofences, setShowGeofences] = useState(true);
   const [geofenceAlerts, setGeofenceAlerts] = useState<string[]>([]);
 
@@ -113,7 +166,7 @@ export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: M
         description: `${alerts.length} ta transport chegaradan tashqarida`,
       });
     }
-  }, [selectedHour]); // Re-check when time changes
+  }, [selectedHours]); // Re-check when time changes
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
@@ -392,8 +445,8 @@ export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: M
       )}
 
       {/* Timeline */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/95 to-transparent pt-10 pb-2 z-[1000]">
-        <TimelineSelector selectedHour={selectedHour} onHourChange={setSelectedHour} />
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/95 to-transparent pt-6 pb-2 z-[1000]">
+        <TimelineSelector selectedHours={selectedHours} onHoursChange={setSelectedHours} />
       </div>
 
       {/* ESC hint in fullscreen */}

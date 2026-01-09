@@ -77,7 +77,7 @@ export const DraggablePanel = ({
         ...anchorStyles,
         transform: getCombinedTransform(),
       }}
-      className={`group transition-shadow ${isDragging ? 'shadow-2xl ring-2 ring-primary/50' : ''} ${className}`}
+      className={`group animate-scale-in transition-all duration-200 ease-out ${isDragging ? 'shadow-2xl ring-2 ring-primary/50 scale-[1.02]' : 'hover:shadow-lg'} ${className}`}
     >
       {/* Drag Handle */}
       <div 

@@ -157,7 +157,7 @@ const Login = () => {
         {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-xs text-muted-foreground">
-            © 2024 GPS Tracking System. Barcha huquqlar himoyalangan.
+            © {new Date().getFullYear()} GPS Tracking System. Barcha huquqlar himoyalangan.
           </p>
         </div>
       </div>

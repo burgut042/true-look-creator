@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Navbar } from "@/components/layout/Navbar";
-import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
+import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +22,6 @@ import {
   User,
   Phone,
   MapPin,
-  Fuel,
   Settings,
   Save,
   RotateCcw
@@ -135,15 +133,8 @@ const AddVehicle = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Navbar />
-      
-      {/* Theme Toggle */}
-      <div className="fixed top-4 right-4 z-[101]">
-        <ThemeToggle />
-      </div>
-
-      <main className="pt-20 pb-8 px-4 max-w-3xl mx-auto">
+    <MainLayout>
+      <div className="p-6 max-w-3xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <PlusCircle className="w-6 h-6 text-primary" />
@@ -384,8 +375,8 @@ const AddVehicle = () => {
             </Button>
           </div>
         </form>
-      </main>
-    </div>
+      </div>
+    </MainLayout>
   );
 };
 

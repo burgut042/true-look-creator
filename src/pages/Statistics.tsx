@@ -1,15 +1,11 @@
 import { useState, useEffect } from "react";
-import { Navbar } from "@/components/layout/Navbar";
-import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
+import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   BarChart3,
   Car,
-  Fuel,
   MapPin,
   Clock,
-  TrendingUp,
-  TrendingDown,
   Activity,
   Loader2
 } from "lucide-react";
@@ -140,25 +136,20 @@ const Statistics = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Statistika yuklanmoqda...</p>
+      <MainLayout>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Statistika yuklanmoqda...</p>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Navbar />
-
-      {/* Theme Toggle */}
-      <div className="fixed top-4 right-4 z-[101]">
-        <ThemeToggle />
-      </div>
-
-      <main className="pt-20 pb-8 px-4 max-w-7xl mx-auto">
+    <MainLayout>
+      <div className="p-6 max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <BarChart3 className="w-6 h-6 text-primary" />
@@ -366,8 +357,8 @@ const Statistics = () => {
             </div>
           </CardContent>
         </Card>
-      </main>
-    </div>
+      </div>
+    </MainLayout>
   );
 };
 

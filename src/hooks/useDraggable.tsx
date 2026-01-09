@@ -40,17 +40,21 @@ export const useDraggable = (options: UseDraggableOptions = {}) => {
     if (!target.closest('[data-drag-handle]')) return;
     
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(true);
     
+    // Use page coordinates for consistent positioning
     const rect = dragRef.current.getBoundingClientRect();
     dragOffset.current = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: e.pageX - rect.left - window.scrollX,
+      y: e.pageY - rect.top - window.scrollY,
     };
   }, []);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !dragRef.current) return;
+    
+    e.preventDefault();
     
     const parent = dragRef.current.parentElement;
     if (!parent) return;
@@ -58,12 +62,14 @@ export const useDraggable = (options: UseDraggableOptions = {}) => {
     const parentRect = parent.getBoundingClientRect();
     const elementRect = dragRef.current.getBoundingClientRect();
     
-    let newX = e.clientX - parentRect.left - dragOffset.current.x;
-    let newY = e.clientY - parentRect.top - dragOffset.current.y;
+    // Calculate new position relative to initial anchor point
+    let newX = e.pageX - parentRect.left - dragOffset.current.x - window.scrollX;
+    let newY = e.pageY - parentRect.top - dragOffset.current.y - window.scrollY;
     
-    // Constrain within parent bounds
-    newX = Math.max(0, Math.min(newX, parentRect.width - elementRect.width));
-    newY = Math.max(0, Math.min(newY, parentRect.height - elementRect.height));
+    // Constrain within parent bounds with some padding
+    const padding = 10;
+    newX = Math.max(-padding, Math.min(newX, parentRect.width - elementRect.width + padding));
+    newY = Math.max(-padding, Math.min(newY, parentRect.height - elementRect.height + padding));
     
     setPosition({ x: newX, y: newY });
   }, [isDragging]);

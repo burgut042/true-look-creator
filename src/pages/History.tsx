@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { Navbar } from "@/components/layout/Navbar";
-import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MainLayout } from "@/components/layout/MainLayout";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,7 +21,8 @@ import {
   ChevronRight,
   Play,
   Pause,
-  Loader2
+  Loader2,
+  Activity
 } from "lucide-react";
 import { toast } from "sonner";
 import { tripAPI } from "@/lib/api";
@@ -147,25 +147,20 @@ const History = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Safar tarixi yuklanmoqda...</p>
+      <MainLayout>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Safar tarixi yuklanmoqda...</p>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Navbar />
-
-      {/* Theme Toggle */}
-      <div className="fixed top-4 right-4 z-[101]">
-        <ThemeToggle />
-      </div>
-
-      <main className="pt-20 pb-8 px-4 max-w-7xl mx-auto">
+    <MainLayout>
+      <div className="p-6 max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <HistoryIcon className="w-6 h-6 text-primary" />
@@ -363,8 +358,8 @@ const History = () => {
             ))}
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </MainLayout>
   );
 };
 

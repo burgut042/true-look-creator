@@ -52,7 +52,7 @@ const Index = () => {
           />
 
           {/* Main Dashboard Container */}
-          <div className="relative flex-1 flex flex-col pt-14">
+          <div className="relative flex-1 flex flex-col">
             {/* Top Section */}
             <div className="flex-1 relative p-4 overflow-hidden">
               {/* Background Map */}

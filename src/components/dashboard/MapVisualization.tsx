@@ -130,11 +130,11 @@ export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: M
 
   // Map vehicles to VehicleMarker format
   const vehicles: VehicleMarker[] = vehiclesFromContext
-    .filter(v => v.location && v.location.latitude && v.location.longitude)
+    .filter(v => v.location && v.location.lat && v.location.lng)
     .map(v => ({
       id: v.id,
-      lat: v.location!.latitude,
-      lng: v.location!.longitude,
+      lat: v.location!.lat,
+      lng: v.location!.lng,
       name: `${v.name} - ${v.plate_number}`,
       speed: v.location!.speed || 0,
       status: v.status

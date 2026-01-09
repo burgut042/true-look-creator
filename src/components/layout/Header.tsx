@@ -71,71 +71,69 @@ export const Header = ({ panels, onTogglePanel, onShowAll, onHideAll }: HeaderPr
   const visibleCount = Object.values(panels).filter(Boolean).length;
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-[100] glass-panel border-b border-border/30 h-14">
-      <div className="h-full px-4 flex items-center justify-between">
-        {/* Left - Sidebar Trigger */}
-        <div className="flex items-center gap-2">
-          <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
-        </div>
+    <header className="h-14 border-b border-border/30 bg-background/80 backdrop-blur-sm flex items-center justify-between px-4">
+      {/* Left - Sidebar Trigger */}
+      <div className="flex items-center gap-2">
+        <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+      </div>
 
-        {/* Right - Panel Controls & Theme */}
-        <div className="flex items-center gap-2">
-          {/* Panel Visibility Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <PanelLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Panellar</span>
-                <span className="bg-primary/20 text-primary text-xs px-1.5 py-0.5 rounded">
-                  {visibleCount}/4
-                </span>
+      {/* Right - Panel Controls & Theme */}
+      <div className="flex items-center gap-2">
+        {/* Panel Visibility Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <PanelLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Panellar</span>
+              <span className="bg-primary/20 text-primary text-xs px-1.5 py-0.5 rounded">
+                {visibleCount}/4
+              </span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Ko'rinadigan panellar</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            
+            {panelItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <DropdownMenuCheckboxItem
+                  key={item.key}
+                  checked={panels[item.key]}
+                  onCheckedChange={() => onTogglePanel(item.key)}
+                >
+                  <Icon className="w-4 h-4 mr-2" />
+                  {item.label}
+                </DropdownMenuCheckboxItem>
+              );
+            })}
+            
+            <DropdownMenuSeparator />
+            
+            <div className="flex gap-1 p-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex-1 text-xs"
+                onClick={onShowAll}
+              >
+                <Eye className="w-3 h-3 mr-1" />
+                Barchasi
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Ko'rinadigan panellar</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              
-              {panelItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={item.key}
-                    checked={panels[item.key]}
-                    onCheckedChange={() => onTogglePanel(item.key)}
-                  >
-                    <Icon className="w-4 h-4 mr-2" />
-                    {item.label}
-                  </DropdownMenuCheckboxItem>
-                );
-              })}
-              
-              <DropdownMenuSeparator />
-              
-              <div className="flex gap-1 p-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="flex-1 text-xs"
-                  onClick={onShowAll}
-                >
-                  <Eye className="w-3 h-3 mr-1" />
-                  Barchasi
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="flex-1 text-xs"
-                  onClick={onHideAll}
-                >
-                  <EyeOff className="w-3 h-3 mr-1" />
-                  Yashirish
-                </Button>
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex-1 text-xs"
+                onClick={onHideAll}
+              >
+                <EyeOff className="w-3 h-3 mr-1" />
+                Yashirish
+              </Button>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-          <ThemeToggle />
-        </div>
+        <ThemeToggle />
       </div>
     </header>
   );

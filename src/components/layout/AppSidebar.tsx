@@ -35,7 +35,7 @@ export const AppSidebar = () => {
               <Navigation className="w-5 h-5 text-primary" />
             </div>
             {!collapsed && (
-              <span className="font-semibold text-foreground">GPS Tracker</span>
+              <span className="font-semibold text-foreground">Elektron kuzatuv & GPS</span>
             )}
           </Link>
         </div>

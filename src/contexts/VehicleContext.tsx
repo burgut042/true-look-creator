@@ -7,9 +7,11 @@ import {
   onLocationUpdate,
   onVehicleStatus,
   onNewAlert,
+  onNewVehicle,
   removeLocationUpdateListener,
   removeVehicleStatusListener,
-  removeNewAlertListener
+  removeNewAlertListener,
+  removeNewVehicleListener
 } from '@/lib/socket';
 import { toast } from 'sonner';
 
@@ -105,8 +107,10 @@ export const VehicleProvider: React.FC<VehicleProviderProps> = ({ children }) =>
 
   // Update vehicle location from socket
   const updateVehicleLocation = (vehicleId: number, locationData: any) => {
-    setVehicles(prev =>
-      prev.map(vehicle =>
+    console.log('🔄 Location update received:', vehicleId, locationData);
+
+    setVehicles(prev => {
+      const updated = prev.map(vehicle =>
         vehicle.id === vehicleId
           ? {
               ...vehicle,
@@ -120,8 +124,10 @@ export const VehicleProvider: React.FC<VehicleProviderProps> = ({ children }) =>
               lastUpdate: locationData.recordedAt || new Date().toISOString()
             }
           : vehicle
-      )
-    );
+      );
+      console.log('✅ Vehicles updated, count:', updated.length);
+      return updated;
+    });
 
     // Update selected vehicle if it's the one being updated
     if (selectedVehicle?.id === vehicleId) {
@@ -241,15 +247,26 @@ export const VehicleProvider: React.FC<VehicleProviderProps> = ({ children }) =>
         addAlert(alert);
       };
 
+      const handleNewVehicle = (data: any) => {
+        console.log('🆕 New vehicle registered:', data);
+        toast.success('Yangi qurilma qo\'shildi!', {
+          description: `${data.name} tizimga ulandi`
+        });
+        // Refresh vehicles list to include the new vehicle
+        fetchVehicles();
+      };
+
       onLocationUpdate(handleLocationUpdate);
       onVehicleStatus(handleStatusUpdate);
       onNewAlert(handleNewAlert);
+      onNewVehicle(handleNewVehicle);
 
       // Cleanup
       return () => {
         removeLocationUpdateListener(handleLocationUpdate);
         removeVehicleStatusListener(handleStatusUpdate);
         removeNewAlertListener(handleNewAlert);
+        removeNewVehicleListener(handleNewVehicle);
         disconnectSocket();
       };
     }

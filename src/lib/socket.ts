@@ -100,6 +100,12 @@ export const onNewAlert = (callback: (alert: any) => void) => {
   }
 };
 
+export const onNewVehicle = (callback: (data: any) => void) => {
+  if (socket) {
+    socket.on('vehicle:new', callback);
+  }
+};
+
 export const onTripStarted = (callback: (data: any) => void) => {
   if (socket) {
     socket.on('trip:started', callback);
@@ -131,6 +137,12 @@ export const removeNewAlertListener = (callback: (alert: any) => void) => {
   }
 };
 
+export const removeNewVehicleListener = (callback: (data: any) => void) => {
+  if (socket) {
+    socket.off('vehicle:new', callback);
+  }
+};
+
 export default {
   initializeSocket,
   getSocket,
@@ -141,9 +153,11 @@ export default {
   onLocationUpdate,
   onVehicleStatus,
   onNewAlert,
+  onNewVehicle,
   onTripStarted,
   onTripEnded,
   removeLocationUpdateListener,
   removeVehicleStatusListener,
-  removeNewAlertListener
+  removeNewAlertListener,
+  removeNewVehicleListener
 };

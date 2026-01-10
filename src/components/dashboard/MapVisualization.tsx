@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
-import { Car, Navigation, Shield, ShieldAlert, Maximize2, Minimize2, Sun, Moon } from "lucide-react";
+import { Car, Navigation, Shield, ShieldAlert, Maximize2, Minimize2, Sun, Moon, ZoomIn, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useVehicles } from "@/contexts/VehicleContext";
 
@@ -126,7 +126,7 @@ interface MapVisualizationProps {
 
 export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: MapVisualizationProps) => {
   // Get vehicles from context
-  const { vehicles: vehiclesFromContext, loading: vehiclesLoading } = useVehicles();
+  const { vehicles: vehiclesFromContext, loading: vehiclesLoading, selectedVehicleId: selectedVehicleIdFromContext, selectVehicle } = useVehicles();
 
   // Map vehicles to VehicleMarker format
   const vehicles: VehicleMarker[] = vehiclesFromContext
@@ -147,66 +147,187 @@ export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: M
   const routeRef = useRef<any>(null);
   const applyThemeRef = useRef<((dark: boolean) => void) | null>(null);
   const districtLayersRef = useRef<any[]>([]);
-  const [selectedVehicle, setSelectedVehicle] = useState<number | null>(null);
+  const vehicleTrajectories = useRef<Map<number, { polyline: any; coords: [number, number][] }>>(new Map());
+  const selectedVehicleId = selectedVehicleIdFromContext?.id || null;
   const [selectedHours, setSelectedHours] = useState<string[]>(["01:00"]);
   const [showGeofences, setShowGeofences] = useState(false);
   const [geofenceAlerts, setGeofenceAlerts] = useState<string[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [mapDarkMode, setMapDarkMode] = useState(false);
+  const [isFocusing, setIsFocusing] = useState(false);
 
-  // Calculate distance between two points (Haversine formula)
-  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-    const R = 6371000; // Earth's radius in meters
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
-  // Check if vehicle is outside geofence
-  const checkGeofenceViolation = (vehicle: VehicleMarker, geofence: Geofence): boolean => {
-    const distance = calculateDistance(
-      vehicle.lat,
-      vehicle.lng,
-      geofence.center[0],
-      geofence.center[1]
-    );
-    return distance > geofence.radius;
-  };
-
-  // Check all vehicles against geofences
-  useEffect(() => {
-    if (!mapReady) return;
-
-    const alerts: string[] = [];
-    vehicles.forEach(vehicle => {
-      geofences.forEach(geofence => {
-        if (geofence.active && checkGeofenceViolation(vehicle, geofence)) {
-          alerts.push(`${vehicle.name} - ${geofence.name} dan tashqarida!`);
-        }
-      });
-    });
-
-    setGeofenceAlerts(alerts);
-
-    // Show toast for violations
-    if (alerts.length > 0) {
-      toast.warning("Geofence ogohlantirish!", {
-        description: `${alerts.length} ta transport chegaradan tashqarida`,
-      });
+  // Markerga fokus berish funksiyasi - BALLON O'CHIRILDI
+  const focusOnMarker = useCallback((vehicleId: number) => {
+    if (!mapInstanceRef.current || !window.ymaps || isFocusing) {
+      console.log("Focus skipped: map not ready or already focusing");
+      return;
     }
-  }, [selectedHours, mapReady]);
+    
+    setIsFocusing(true);
+    
+    // Vehicle'ni topish
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (!vehicle) {
+      toast.warning("Transport topilmadi");
+      setIsFocusing(false);
+      return;
+    }
+    
+    const coordinates = [vehicle.lat, vehicle.lng];
+    const map = mapInstanceRef.current;
+    
+    console.log("Focusing on marker:", vehicle.name, coordinates);
+    
+    try {
+      // Oddiy centrlash (animatsiyasiz)
+      map.setCenter(coordinates, 16, {
+        duration: 600,
+        timingFunction: 'ease-in-out'
+      });
+      
+      // Markerni kattalashtirish
+      const markerIndex = vehicles.findIndex(v => v.id === vehicleId);
+      const marker = vehicleMarkerRefs.current[markerIndex];
+      
+      if (marker) {
+        const isSelected = selectedVehicleId === vehicleId;
+        const newRadius = 25; // Kattalashtirilgan radius
+        
+        // Kattalashtirish
+        marker.options.set({
+          iconShape: {
+            type: 'Circle',
+            coordinates: [0, 0],
+            radius: newRadius
+          }
+        });
+        
+        // 2 soniyadan so'ng original o'lchamga qaytarish
+        setTimeout(() => {
+          if (marker) {
+            const originalRadius = isSelected ? 22 : 17;
+            marker.options.set({
+              iconShape: {
+                type: 'Circle',
+                coordinates: [0, 0],
+                radius: originalRadius
+              }
+            });
+          }
+        }, 2000);
+        
+        // BALLOON O'CHIRILDI - xatoni oldini olish uchun
+        // setTimeout(() => {
+        //   try {
+        //     marker.balloon.open();
+        //   } catch (e) {
+        //     console.log("Balloon ochishda xatolik:", e);
+        //   }
+        // }, 300);
+      }
+      
+      toast.success(`${vehicle.name} markazlashtirildi`, {
+        description: `Tezlik: ${vehicle.speed} km/s`,
+        icon: <Target className="w-4 h-4" />,
+      });
+      
+    } catch (error) {
+      console.error("Focus error:", error);
+    } finally {
+      setTimeout(() => setIsFocusing(false), 1000);
+    }
+  }, [vehicles, selectedVehicleId, isFocusing]);
 
-  // Create custom vehicle icon HTML
+  // Barcha transportlarga fokus berish
+  const focusOnAllVehicles = useCallback(() => {
+    if (!mapInstanceRef.current || vehicles.length === 0) {
+      toast.warning("Transportlar mavjud emas");
+      return;
+    }
+    
+    const map = mapInstanceRef.current;
+    const coordinates = vehicles.map(v => [v.lat, v.lng] as [number, number]);
+    
+    if (coordinates.length === 1) {
+      // Agar faqat bitta transport bo'lsa, unga fokus berish
+      focusOnMarker(vehicles[0].id);
+      return;
+    }
+    
+    try {
+      // Barcha transportlar uchun bounds hisoblash
+      const bounds = window.ymaps.util.bounds.fromPoints(coordinates);
+      
+      map.setBounds(bounds, {
+        checkZoomRange: true,
+        duration: 800
+      });
+      
+      toast.info("Barcha transportlar ko'rsatildi", {
+        description: `${vehicles.length} ta transport xaritada markazlashtirildi`
+      });
+    } catch (error) {
+      console.error("Focus all error:", error);
+      // Fallback: birinchi transportga fokus
+      if (vehicles.length > 0) {
+        focusOnMarker(vehicles[0].id);
+      }
+    }
+  }, [vehicles, focusOnMarker]);
+
+  // Tanlangan transport o'zgarganda avtomatik fokus berish
+  useEffect(() => {
+    if (selectedVehicleId && mapReady) {
+      // Kichik kechikish bilan fokus berish
+      setTimeout(() => {
+        focusOnMarker(selectedVehicleId);
+      }, 300);
+    }
+  }, [selectedVehicleId, mapReady, focusOnMarker]);
+
+  // Get vehicle type from vehiclesFromContext
+  const getVehicleType = (vehicleId: number): string => {
+    const vehicle = vehiclesFromContext.find(v => v.id === vehicleId);
+    return vehicle?.type || 'car';
+  };
+
+  // Create custom vehicle/person icon HTML
   const createVehicleIconLayout = (status: string, isSelected: boolean, id: number) => {
     if (!window.ymaps) return null;
 
     const color = status === "online" ? "#22c55e" : status === "idle" ? "#eab308" : "#ef4444";
-    const size = isSelected ? 40 : 30;
+    const size = isSelected ? 44 : 34;
+    const vehicleType = getVehicleType(id);
+
+    // Different icons for different types
+    const isPerson = vehicleType === 'person';
+    const isBicycle = vehicleType === 'bicycle';
+    const isScooter = vehicleType === 'scooter';
+
+    // Icon SVG
+    let iconSvg = '';
+    if (isPerson) {
+      // Person icon
+      iconSvg = `<svg width="${size * 0.6}" height="${size * 0.6}" viewBox="0 0 24 24" fill="${color}">
+        <circle cx="12" cy="6" r="3"/>
+        <path d="M12 10c-3 0-5 2-5 5v6h2v-6c0-1.5 1-3 3-3s3 1.5 3 3v6h2v-6c0-3-2-5-5-5z"/>
+      </svg>`;
+    } else if (isBicycle) {
+      // Bicycle icon
+      iconSvg = `<svg width="${size * 0.6}" height="${size * 0.6}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2">
+        <circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/>
+        <path d="M12 5l3 3M8 11l4 7 4-7"/>
+      </svg>`;
+    } else if (isScooter) {
+      // Scooter icon
+      iconSvg = `<svg width="${size * 0.6}" height="${size * 0.6}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2">
+        <circle cx="7" cy="19" r="2"/><circle cx="17" cy="19" r="2"/>
+        <path d="M9 19h6M12 5v10M14 7l-4-2"/>
+      </svg>`;
+    } else {
+      // Default vehicle icon (circle)
+      iconSvg = `<div style="width: ${size * 0.5}px; height: ${size * 0.5}px; background: ${color}; border-radius: 50%;"></div>`;
+    }
 
     return window.ymaps.templateLayoutFactory.createClass(
       `<div style="
@@ -218,17 +339,30 @@ export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: M
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 0 ${isSelected ? '20px' : '10px'} ${color}80;
+        box-shadow: 0 0 ${isSelected ? '24px' : '12px'} ${color}80;
         transition: all 0.3s;
         cursor: pointer;
+        position: relative;
       ">
-        <div style="
-          width: ${size * 0.5}px;
-          height: ${size * 0.5}px;
+        ${iconSvg}
+        ${isSelected ? `<div style="
+          position: absolute;
+          top: -8px;
+          right: -8px;
+          width: 16px;
+          height: 16px;
           background: ${color};
           border-radius: 50%;
-        "></div>
-      </div>`,
+          border: 2px solid white;
+          animation: ping 1s infinite;
+        "></div>` : ''}
+      </div>
+      <style>
+        @keyframes ping {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.2); }
+        }
+      </style>`,
       {
         build: function () {
           // @ts-ignore
@@ -288,186 +422,6 @@ export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: M
         });
         map.controls.add(zoomControl);
 
-        // Add vehicle markers
-        vehicles.forEach((vehicle) => {
-          const iconLayout = createVehicleIconLayout(
-            vehicle.status,
-            selectedVehicle === vehicle.id,
-            vehicle.id
-          );
-
-          if (!iconLayout) return;
-
-          const placemark = new window.ymaps.Placemark(
-            [vehicle.lat, vehicle.lng],
-            {
-              balloonContentHeader: `<div style="font-weight: 600; color: #22d3ee;">${vehicle.name}</div>`,
-              balloonContentBody: `
-                <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px;">
-                  <div style="display: flex; justify-content: space-between;">
-                    <span style="color: #94a3b8;">Holat:</span>
-                    <span style="color: ${vehicle.status === 'online' ? '#22c55e' : vehicle.status === 'idle' ? '#eab308' : '#ef4444'};">
-                      ${vehicle.status === 'online' ? 'Faol' : vehicle.status === 'idle' ? 'Kutish' : "O'chiq"}
-                    </span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span style="color: #94a3b8;">Tezlik:</span>
-                    <span style="color: #e2e8f0;">${vehicle.speed} km/s</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span style="color: #94a3b8;">Koordinatalar:</span>
-                    <span style="color: #e2e8f0;">${vehicle.lat.toFixed(4)}, ${vehicle.lng.toFixed(4)}</span>
-                  </div>
-                </div>
-              `,
-              hintContent: vehicle.name
-            },
-            {
-              iconLayout: iconLayout,
-              iconShape: {
-                type: 'Circle',
-                coordinates: [0, 0],
-                radius: selectedVehicle === vehicle.id ? 20 : 15
-              }
-            }
-          );
-
-          placemark.events.add('click', () => {
-            setSelectedVehicle(vehicle.id);
-            toast.success(`Transport tanlandi`, {
-              description: `${vehicle.name} - ${vehicle.speed} km/s`,
-            });
-          });
-
-          map.geoObjects.add(placemark);
-          vehicleMarkerRefs.current.push(placemark);
-        });
-
-        // Draw route within Tashkent city
-        const routeCoords: [number, number][] = [
-          [41.2856, 69.2035], // Chilonzor
-          [41.2995, 69.2401], // Toshkent markazi
-          [41.3337, 69.2890], // Yunusobod
-        ];
-
-        const polyline = new window.ymaps.Polyline(
-          routeCoords,
-          {
-            hintContent: "Chilonzor - Markaz - Yunusobod yo'nalishi"
-          },
-          {
-            strokeColor: '#22d3ee',
-            strokeWidth: 3,
-            strokeStyle: '5 5',
-            opacity: 0.7
-          }
-        );
-
-        // map.geoObjects.add(polyline);
-        // routeRef.current = polyline;
-
-        // Load and display Tashkent city districts from GeoJSON
-        fetch('/tuman_4326.geojson')
-          .then(response => response.json())
-          .then(geojsonData => {
-            // Faqat Toshkent shahridagi tumanlar
-            const tashkentDistricts = [
-              'Bektemir tumani',
-              'Chilonzor tumani',
-              'Mirobod tumani',
-              'Mirzo ulug‘bek tumani',
-              'Olmazor tumani',
-              'Shayxontohur tumani',
-              'Uchtepa tumani',
-              'Yakkasaroy tumani',
-              'Yashnobod tumani',
-              'Yunusobod tumani',
-              'Sergeli tumani',
-              'Yangihayot tumani'
-            ];
-
-            // Har bir tuman uchun turli shaffof ranglar
-            const districtColors = [
-              '#FF6B6B30', '#4ECDC430', '#45B7D130', '#FFA07A30', '#98D8C830',
-              '#F7DC6F30', '#BB8FCE30', '#85C1E930', '#F8B88B30', '#ABEBC630',
-              '#FAD7A030', '#D7BDE230', '#A9CCE330', '#F9E79F30', '#D98AAD30',
-              '#AED6F130', '#F5B7B130', '#B2DFDB30', '#C5CAE930', '#FFB6C130', '#A8E6CF30'
-            ];
-
-            // Chegaralar rangi
-            const borderColors = [
-              '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
-              '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8B88B', '#ABEBC6',
-              '#FAD7A0', '#D7BDE2', '#A9CCE3', '#F9E79F', '#D98AAD',
-              '#AED6F1', '#F5B7B1', '#B2DFDB', '#C5CAE9', '#FFB6C1', '#A8E6CF'
-            ];
-
-            // Filter only Tashkent city and nearby districts
-            const tashkentFeatures = geojsonData.features.filter((feature: any) =>
-              tashkentDistricts.includes(feature.properties.district)
-            );
-
-            // Add each district boundary to map
-            tashkentFeatures.forEach((feature: any, index: number) => {
-              const coordinates = feature.geometry.coordinates;
-              const fillColor = districtColors[index % districtColors.length];
-              const strokeColor = borderColors[index % borderColors.length];
-
-              // Handle MultiPolygon
-              coordinates.forEach((polygon: any) => {
-                const polygonCoords = polygon[0].map((coord: any) => [coord[1], coord[0]]);
-
-                const polygonObject = new window.ymaps.Polygon(
-                  [polygonCoords],
-                  {
-                    hintContent: feature.properties.district,
-                    balloonContent: `<div style="font-family: system-ui;">
-                      <div style="font-weight: 600; color: ${strokeColor}; margin-bottom: 4px;">${feature.properties.district}</div>
-                      <div style="font-size: 11px; color: #94a3b8;">Toshkent hududi</div>
-                    </div>`
-                  },
-                  {
-                    fillColor: fillColor,
-                    strokeColor: strokeColor,
-                    strokeWidth: 3
-                  }
-                );
-
-                // Add click event to focus on district and remove fill color
-                polygonObject.events.add('click', (e: any) => {
-                  e.preventDefault();
-
-                  // Remove fill color from clicked polygon
-                  polygonObject.options.set('fillColor', '#00000000');
-
-                  // Focus on district
-                  const bounds = polygonObject.geometry.getBounds();
-                  map.setBounds(bounds, {
-                    checkZoomRange: true,
-                    duration: 500
-                  });
-
-                  toast.info(feature.properties.district, {
-                    description: 'Tumanga fokus berildi'
-                  });
-                });
-
-                map.geoObjects.add(polygonObject);
-                districtLayersRef.current.push(polygonObject);
-              });
-            });
-
-            toast.success("Tuman chegaralari yuklandi", {
-              description: `${tashkentFeatures.length} ta tuman ko'rsatildi`
-            });
-          })
-          .catch(error => {
-            console.error('Error loading GeoJSON:', error);
-            toast.error("Tuman chegaralarini yuklab bo'lmadi");
-          });
-
-        // Geofence circles removed - using district boundaries instead
-
         mapInstanceRef.current = map;
         setMapReady(true);
 
@@ -512,6 +466,16 @@ export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: M
         });
         districtLayersRef.current = [];
 
+        // Clear trajectories
+        vehicleTrajectories.current.forEach((trajectory) => {
+          try {
+            mapInstanceRef.current.geoObjects.remove(trajectory.polyline);
+          } catch (e) {
+            console.log('Trajectory already removed');
+          }
+        });
+        vehicleTrajectories.current.clear();
+
         mapInstanceRef.current.destroy();
         mapInstanceRef.current = null;
       }
@@ -533,78 +497,235 @@ export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: M
     });
   }, [showGeofences, mapReady]);
 
-  // Update vehicle marker when selection changes or vehicles update
+  // Update vehicle markers and trajectories
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
 
+    console.log('🗺️ Map updating with vehicles:', vehicles.length);
+
     // Recreate vehicle markers with updated selection
     vehicleMarkerRefs.current.forEach(marker => {
-      mapInstanceRef.current.geoObjects.remove(marker);
+      try {
+        mapInstanceRef.current.geoObjects.remove(marker);
+      } catch (e) {
+        console.log('Marker already removed');
+      }
     });
     vehicleMarkerRefs.current = [];
 
-    vehicles.forEach((vehicle) => {
+    vehicles.forEach((vehicle, index) => {
+      console.log('📍 Adding marker for:', vehicle.name);
       const iconLayout = createVehicleIconLayout(
         vehicle.status,
-        selectedVehicle === vehicle.id,
+        selectedVehicleId === vehicle.id,
         vehicle.id
       );
 
       if (!iconLayout) return;
 
+      // Oddiy Placemark yaratish - balloon options'larini kamaytirish
       const placemark = new window.ymaps.Placemark(
         [vehicle.lat, vehicle.lng],
         {
-          balloonContentHeader: `<div style="font-weight: 600; color: #22d3ee;">${vehicle.name}</div>`,
+          // Balloon content'ni oddiy qilish
+          balloonContentHeader: `<div style="font-weight: 600; color: #22d3ee; font-size: 14px;">${vehicle.name}</div>`,
           balloonContentBody: `
-            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px;">
-              <div style="display: flex; justify-content: space-between;">
-                <span style="color: #94a3b8;">Holat:</span>
-                <span style="color: ${vehicle.status === 'online' ? '#22c55e' : vehicle.status === 'idle' ? '#eab308' : '#ef4444'};">
-                  ${vehicle.status === 'online' ? 'Faol' : vehicle.status === 'idle' ? 'Kutish' : "O'chiq"}
-                </span>
-              </div>
-              <div style="display: flex; justify-content: space-between;">
-                <span style="color: #94a3b8;">Tezlik:</span>
-                <span style="color: #e2e8f0;">${vehicle.speed} km/s</span>
-              </div>
-              <div style="display: flex; justify-content: space-between;">
-                <span style="color: #94a3b8;">Koordinatalar:</span>
-                <span style="color: #e2e8f0;">${vehicle.lat.toFixed(4)}, ${vehicle.lng.toFixed(4)}</span>
-              </div>
+            <div style="font-size: 12px;">
+              <div><strong>Holat:</strong> ${vehicle.status === 'online' ? 'Faol' : vehicle.status === 'idle' ? 'Kutish' : "O'chiq"}</div>
+              <div><strong>Tezlik:</strong> ${vehicle.speed} km/s</div>
+              <div><strong>Koordinatalar:</strong> ${vehicle.lat.toFixed(4)}, ${vehicle.lng.toFixed(4)}</div>
             </div>
           `,
-          hintContent: vehicle.name
+          hintContent: `${vehicle.name} - ${vehicle.speed} km/s`
         },
         {
           iconLayout: iconLayout,
           iconShape: {
             type: 'Circle',
             coordinates: [0, 0],
-            radius: selectedVehicle === vehicle.id ? 20 : 15
-          }
+            radius: selectedVehicleId === vehicle.id ? 22 : 17
+          },
+          // Minimal balloon options
+          balloonCloseButton: false,
+          balloonAutoPan: false,
+          openBalloonOnClick: false, // Avtomatik balloon ochilishini o'chirish
+          hideIconOnBalloonOpen: false,
+          balloonPanelMaxMapArea: 0,
+          balloonShadow: false,
+          balloonLayout: window.ymaps.templateLayoutFactory.createClass(
+            '<div style="background: white; padding: 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 200px;">$[properties.balloonContent]</div>'
+          )
         }
       );
 
-      placemark.events.add('click', () => {
-        setSelectedVehicle(vehicle.id);
-        toast.success(`Transport tanlandi`, {
-          description: `${vehicle.name} - ${vehicle.speed} km/s`,
-        });
-      });
+      // Oddiy click event - FAKAT FOCUS UCHUN
+      const handleMarkerClick = () => {
+        console.log('Marker clicked:', vehicle.id, vehicle.name);
+        
+        const fullVehicle = vehiclesFromContext.find(v => v.id === vehicle.id);
+        if (fullVehicle) {
+          selectVehicle(fullVehicle);
+          
+          // Markerga focus berish
+          setTimeout(() => {
+            focusOnMarker(vehicle.id);
+          }, 100);
+          
+          toast.success(`Transport tanlandi`, {
+            description: `${vehicle.name} - ${vehicle.speed} km/s`,
+          });
+        }
+      };
 
+      // Click event'ni qo'shish
+      placemark.events.add('click', handleMarkerClick);
+
+      // Placemark'ni xaritaga qo'shish
       mapInstanceRef.current.geoObjects.add(placemark);
-      vehicleMarkerRefs.current.push(placemark);
+      
+      // Marker'ni array'ga saqlash
+      vehicleMarkerRefs.current[index] = placemark;
+
+      // Update trajectory for this vehicle
+      updateVehicleTrajectory(vehicle);
     });
-  }, [selectedVehicle, vehicles, mapReady]);
+  }, [selectedVehicleId, vehicles, mapReady]);
+
+  // Function to update vehicle trajectory with professional styling
+  const updateVehicleTrajectory = (vehicle: VehicleMarker) => {
+    if (!mapInstanceRef.current || !window.ymaps) return;
+
+    const map = mapInstanceRef.current;
+    const vehicleId = vehicle.id;
+    const newCoord: [number, number] = [vehicle.lat, vehicle.lng];
+    const vehicleType = getVehicleType(vehicleId);
+
+    console.log('🛣️ updateVehicleTrajectory called for:', vehicle.name, 'at:', newCoord);
+
+    // Get or create trajectory for this vehicle
+    let trajectory = vehicleTrajectories.current.get(vehicleId);
+
+    if (!trajectory) {
+      console.log('✨ Creating NEW trajectory for:', vehicle.name);
+      // Create new trajectory with professional styling
+      const color = vehicle.status === 'online' ? '#22c55e' : vehicle.status === 'idle' ? '#eab308' : '#ef4444';
+
+      // Different stroke width for different types
+      const strokeWidth = vehicleType === 'person' ? 4 : vehicleType === 'bicycle' || vehicleType === 'scooter' ? 3 : 4;
+
+      const polyline = new window.ymaps.Polyline(
+        [newCoord],
+        {
+          hintContent: `${vehicle.name} - Harakat trayektoriyasi`,
+          balloonContent: `
+            <div style="font-family: system-ui; padding: 4px;">
+              <div style="font-weight: 600; color: ${color}; margin-bottom: 4px;">${vehicle.name}</div>
+              <div style="font-size: 11px; color: #666;">
+                ${vehicleType === 'person' ? '🚶 Shaxs' :
+                  vehicleType === 'bicycle' ? '🚴 Velosiped' :
+                  vehicleType === 'scooter' ? '🛴 Skuter' : '🚗 Transport'}
+              </div>
+              <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                Nuqtalar: <span style="font-weight: 600;">1</span>
+              </div>
+            </div>
+          `
+        },
+        {
+          strokeColor: color,
+          strokeWidth: strokeWidth,
+          strokeOpacity: selectedVehicleId === vehicleId ? 0.85 : 0.5,
+          strokeStyle: selectedVehicleId === vehicleId ? 'solid' : 'dot',
+          zIndex: selectedVehicleId === vehicleId ? 1000 : 100
+        }
+      );
+
+      map.geoObjects.add(polyline);
+
+      trajectory = {
+        polyline,
+        coords: [newCoord]
+      };
+
+      vehicleTrajectories.current.set(vehicleId, trajectory);
+      console.log('✅ New trajectory created with 1 point');
+    } else {
+      console.log('🔄 Updating EXISTING trajectory for:', vehicle.name);
+      // Update existing trajectory
+      const { polyline, coords } = trajectory;
+
+      console.log('📊 Current coords count:', coords.length, 'Last coord:', coords[coords.length - 1], 'New coord:', newCoord);
+
+      // Add all coordinates without validation - show complete trajectory
+      coords.push(newCoord);
+      console.log('➕ Pushed new coord! Total coords now:', coords.length);
+
+      // Keep last 200 points for persons, 150 for vehicles
+      const maxPoints = vehicleType === 'person' ? 200 : 150;
+      if (coords.length > maxPoints) {
+        coords.shift();
+        console.log('🗑️ Removed oldest point, keeping last', maxPoints);
+      }
+
+      // Update polyline geometry
+      polyline.geometry.setCoordinates(coords);
+      console.log('🎨 Polyline geometry updated with', coords.length, 'points');
+
+      // Update color and styling based on status
+      const color = vehicle.status === 'online' ? '#22c55e' : vehicle.status === 'idle' ? '#eab308' : '#ef4444';
+
+      // Update balloon content with point count
+      polyline.properties.set('balloonContent', `
+        <div style="font-family: system-ui; padding: 4px;">
+          <div style="font-weight: 600; color: ${color}; margin-bottom: 4px;">${vehicle.name}</div>
+          <div style="font-size: 11px; color: #666;">
+            ${vehicleType === 'person' ? '🚶 Shaxs' :
+              vehicleType === 'bicycle' ? '🚴 Velosiped' :
+              vehicleType === 'scooter' ? '🛴 Skuter' : '🚗 Transport'}
+          </div>
+          <div style="font-size: 11px; color: #666; margin-top: 4px;">
+            Nuqtalar: <span style="font-weight: 600;">${coords.length}</span>
+          </div>
+          <div style="font-size: 10px; color: #999; margin-top: 2px;">
+            Tezlik: ${vehicle.speed} km/h
+          </div>
+        </div>
+      `);
+
+      // Update polyline color
+      polyline.options.set('strokeColor', color);
+
+      // Update stroke width for different types
+      const strokeWidth = vehicleType === 'person' ? 4 : vehicleType === 'bicycle' || vehicleType === 'scooter' ? 3 : 4;
+      polyline.options.set('strokeWidth', strokeWidth);
+
+      // Update styling based on selection
+      polyline.options.set('strokeOpacity', selectedVehicleId === vehicleId ? 0.85 : 0.5);
+      polyline.options.set('strokeStyle', selectedVehicleId === vehicleId ? 'solid' : 'dot');
+      polyline.options.set('zIndex', selectedVehicleId === vehicleId ? 1000 : 100);
+    }
+  };
 
   return (
     <div className={`relative flex-1 h-full min-h-[500px] rounded-lg overflow-hidden ${isFullscreen ? 'fixed inset-0 z-[9999] rounded-none' : ''}`}>
       {/* Map Container */}
       <div ref={mapRef} className="absolute inset-0 z-0" />
 
-      {/* Fullscreen and theme toggle */}
+      {/* Controls panel */}
       <div className="absolute right-4 top-4 z-[1000] flex gap-2">
+        {/* Barcha transportlarga fokus tugmasi */}
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={focusOnAllVehicles}
+          className="glass-panel border-border/50 hover:bg-accent"
+          title="Barcha transportlarni ko'rsatish"
+          disabled={vehicles.length === 0 || isFocusing}
+        >
+          <Target className="w-4 h-4" />
+        </Button>
+
+        {/* Theme toggle */}
         <Button
           variant="outline"
           size="icon"
@@ -618,24 +739,52 @@ export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: M
           }}
           className="glass-panel border-border/50 hover:bg-accent"
           title={mapDarkMode ? "Kun rejimiga o'tish" : "Tun rejimiga o'tish"}
+          disabled={isFocusing}
         >
           {mapDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </Button>
+        
+        {/* Fullscreen toggle */}
         <Button
           variant="outline"
           size="icon"
           onClick={onToggleFullscreen}
           className="glass-panel border-border/50 hover:bg-accent"
           title={isFullscreen ? "Kichraytirish" : "To'liq ekran"}
+          disabled={isFocusing}
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </Button>
       </div>
 
+      {/* Focus hint panel */}
+      {!isFullscreen && (
+        <div className="absolute left-4 top-16 z-[1000] glass-panel rounded-lg p-3 max-w-xs">
+          <div className="text-xs font-medium text-foreground mb-2 flex items-center gap-2">
+            <Target className="w-4 h-4 text-primary" />
+            Fokus berish
+          </div>
+          <div className="text-xs text-muted-foreground space-y-1">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              <span>Marker'ga bosing - mashinaga fokus</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+              <span>Avtomatik - transport tanlanganda</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+              <span>Target tugmasi - barchasini ko'rish</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Legend - hide in fullscreen for cleaner view */}
       {!isFullscreen && (
         <div className="absolute right-1 bottom-20 z-[1000] glass-panel rounded-lg p-3 space-y-2">
-          <div className="text-xs font-medium text-foreground mb-2">Transport holati</div>
+          <div className="text-xs font-medium text-foreground mb-2">Holat</div>
           <div className="flex items-center gap-2 text-xs">
             <div className="w-3 h-3 rounded-full bg-green-500" />
             <span className="text-muted-foreground">Faol</span>
@@ -648,35 +797,19 @@ export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: M
             <div className="w-3 h-3 rounded-full bg-red-500" />
             <span className="text-muted-foreground">O'chiq</span>
           </div>
+          <div className="border-t border-border/50 my-2" />
+          <div className="text-xs font-medium text-foreground mb-1">Tur</div>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">🚗 Transport</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">🚶 Shaxs</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">🚴 Velosiped</span>
+          </div>
         </div>
       )}
-
-      {/* Geofence Controls */}
-      <div className={`absolute ${isFullscreen ? 'left-1 top-1' : 'left-1 top-1'} z-[1000] glass-panel rounded-lg p-3 space-y-2`}>
-        <div className="text-xs font-medium text-foreground mb-2 flex items-center gap-2">
-          <Shield className="w-4 h-4 text-violet-500" />
-          Geo-chegara
-        </div>
-        <Button
-          variant={showGeofences ? "default" : "outline"}
-          size="sm"
-          onClick={() => {
-            setShowGeofences(!showGeofences);
-            toast.info(showGeofences ? "Geo-chegaralar yashirildi" : "Geo-chegaralar ko'rsatildi");
-          }}
-          className="w-full text-xs"
-        >
-          {showGeofences ? "Yashirish" : "Ko'rsatish"}
-        </Button>
-        {geofenceAlerts.length > 0 && (
-          <div className="mt-2 p-2 bg-destructive/20 rounded border border-destructive/50">
-            <div className="flex items-center gap-1 text-xs text-destructive">
-              <ShieldAlert className="w-3 h-3" />
-              <span>{geofenceAlerts.length} ta ogohlantirish</span>
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* Stats */}
       <div className={`absolute ${isFullscreen ? 'right-16' : 'right-4'} top-16 z-[1000] glass-panel rounded-lg p-3 space-y-2 text-xs`}>
@@ -691,23 +824,6 @@ export const MapVisualization = ({ isFullscreen = false, onToggleFullscreen }: M
           <span className="font-medium text-green-500">{vehicles.filter(v => v.status === 'online').length}</span>
         </div>
       </div>
-
-      {/* Geofence Alerts Panel - shown in fullscreen */}
-      {isFullscreen && geofenceAlerts.length > 0 && (
-        <div className="absolute left-4 bottom-24 z-[1000] glass-panel rounded-lg p-3 max-w-xs">
-          <div className="flex items-center gap-2 text-xs font-medium text-destructive mb-2">
-            <ShieldAlert className="w-4 h-4" />
-            Geofence ogohlantirishlari
-          </div>
-          <div className="space-y-1 max-h-32 overflow-y-auto">
-            {geofenceAlerts.map((alert, i) => (
-              <div key={i} className="text-xs text-muted-foreground bg-destructive/10 rounded px-2 py-1">
-                {alert}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Chevron indicator */}
       {!isFullscreen && (
